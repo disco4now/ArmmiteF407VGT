@@ -73,6 +73,7 @@ extern int MMCharPos;
 
 //#ifdef CMD_EXECUTE
 extern volatile unsigned int ScrewUpTimer;
+extern void cleanend(void);
 
 
 // this is the command table that defines the various tokens for commands in the source code
@@ -155,7 +156,103 @@ int emptyarray=0;
 struct s_hash hashlist[MAXVARS/2]={0};
 int hashlistpointer=0;
 int multi=false;
+/*
+const char namestart[256]={
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x10
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x20
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x30
+		0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, //0x40
+		1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1, //0x50
+		0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, //0x60
+		1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0, //0x70
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x80
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x90
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xA0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xB0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xC0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xD0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xE0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  //0xF0
+};
+*/
+const char namein[256]={
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x10
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0, //0x20
+		1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0, //0x30
+		0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, //0x40
+		1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1, //0x50
+		0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, //0x60
+		1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0, //0x70
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x80
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x90
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xA0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xB0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xC0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xD0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xE0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  //0xF0
+};
+/*
+const char nameend[256]={
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x10
+		0,1,0,0,1,1,0,0,0,0,0,0,0,0,1,0, //0x20
+		1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0, //0x30
+		0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, //0x40
+		1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1, //0x50
+		0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, //0x60
+		1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0, //0x70
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x80
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x90
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xA0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xB0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xC0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xD0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xE0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  //0xF0
+};
+const char digit[256]={
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x10
+		0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0, //0x20
+		1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0, //0x30
+		0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0, //0x40
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x50
+		0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0, //0x60
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x70
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x80
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0x90
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xA0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xB0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xC0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xD0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, //0xE0
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  //0xF0
+};
 
+
+
+const char upper[256]={
+		0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15, //0
+		16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31, //0x10
+		32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47, //0x20
+		48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63, //0x30
+		64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79, //0x40
+		80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95, //0x50
+		96,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79, //0x60
+		80,81,82,83,84,85,86,87,88,89,90,123,124,125,126,127, //0x70
+		128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143, //0x80
+		144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159, //0x90
+		160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175, //0xA0
+		176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191, //0xB0
+		192,192,194,195,196,197,198,199,200,201,202,203,204,205,206,207, //0xC0
+		208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223, //0xD0
+		224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239, //0xE0
+		240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255  //0xF0
+};
+*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Global information used by operators and functions
@@ -361,7 +458,7 @@ void MIPS16 PrepareProgram(int ErrAbort) {
 
     NbrFuncts = 0;
     CFunctionFlash = CFunctionLibrary = NULL;
-     if(Option.ProgFlashSize != PROG_FLASH_SIZE)
+     if(Option.ProgFlashSize == PROG_FLASH_SIZE)
          NbrFuncts = PrepareProgramExt(ProgMemory + Option.ProgFlashSize, 0, &CFunctionLibrary, ErrAbort);
     PrepareProgramExt(ProgMemory, NbrFuncts, &CFunctionFlash, ErrAbort);
 
@@ -420,8 +517,7 @@ int MIPS16 PrepareProgramExt(char *p, int i, unsigned char **CFunPtr, int ErrAbo
     cfp = *(unsigned int **)CFunPtr;
     while(*cfp != 0xffffffff) {
         if(*cfp < FONT_TABLE_SIZE)
-       //	if(*cfp >> 31)
-           FontTable[*cfp] = (unsigned char *)(cfp + 2 );
+            FontTable[*cfp] = (unsigned char *)(cfp + 2);
         cfp++;
         cfp += (*cfp + 4) / sizeof(unsigned int);
     }
@@ -888,17 +984,17 @@ void MIPS16 tokenise(int console) {
     STR_REPLACE(inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
     STR_REPLACE(inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
     //Prevent recursive replacement of PAGE
-    STR_REPLACE(inpbuf,"GUI PAGE ","GUI PAGE\370");
-    STR_REPLACE(inpbuf,"PAGE ","GUI PAGE ");
-    STR_REPLACE(inpbuf,"GUI PAGE\370","GUI PAGE ");
+    //STR_REPLACE(inpbuf,"GUI PAGE ","GUI PAGE\370");
+    //STR_REPLACE(inpbuf,"PAGE ","GUI PAGE ");
+    //STR_REPLACE(inpbuf,"GUI PAGE\370","GUI PAGE ");
     //Prevent recursive replacement of LCD
-    STR_REPLACE(inpbuf,"BITBANG LCD ","BITBANG LCD\370");
-    STR_REPLACE(inpbuf,"LCD ","BITBANG LCD ");
-    STR_REPLACE(inpbuf,"BITBANG LCD\370","BITBANG LCD ");
+    STR_REPLACE(inpbuf,"DEVICE LCD ","DEVICE LCD\370");
+    STR_REPLACE(inpbuf,"LCD ","DEVICE LCD ");
+    STR_REPLACE(inpbuf,"DEVICE LCD\370","DEVICE LCD ");
     //Prevent recursive replacement of HUMID
-    STR_REPLACE(inpbuf,"BITBANG HUMID ","BITBANG HUMID\370");
-    STR_REPLACE(inpbuf,"HUMID ","BITBANG HUMID ");
-    STR_REPLACE(inpbuf,"BITBANG HUMID\370","BITBANG HUMID ");
+    STR_REPLACE(inpbuf,"DEVICE HUMID ","DEVICE HUMID\370");
+    STR_REPLACE(inpbuf,"HUMID ","DEVICE HUMID ");
+    STR_REPLACE(inpbuf,"DEVICE HUMID\370","DEVICE HUMID ");
 
     // setup the input and output buffers
     p = inpbuf;
@@ -998,6 +1094,9 @@ void MIPS16 tokenise(int console) {
                     match_p = p = tp2;
             } else if((tp2 = checkstring(p, "SPRITE")) != NULL) {
                     match_i = GetCommandValue("Blit") - C_BASETOKEN;
+                    match_p = p = tp2;
+            } else if((tp2 = checkstring(p, "BITBANG")) != NULL) {
+                    match_i = GetCommandValue("Device") - C_BASETOKEN;
                     match_p = p = tp2;
             } else if((tp2 = checkstring(p, "ELSE IF")) != NULL) {
                     match_i = GetCommandValue("ElseIf") - C_BASETOKEN;
@@ -1233,6 +1332,20 @@ long long int getinteger(char *p) {
 // evaluate an expression and return an integer
 // this will throw an error is the integer is outside a specified range
 // this will correctly round the number if it is a fraction of an integer
+
+long long int getint(char *p, long long int min, long long int max) {
+    long long int  i;
+    int t = T_INT;
+    MMFLOAT f;
+    long long int i64;
+    char *s;
+    evaluate(p, &f, &i64, &s, &t, false);
+    if(t & T_NBR) i= FloatToInt64(f);
+    else i=i64;
+    if(i < min || i > max) error("~ is invalid (valid is ~ to ~)", i, min, max);
+    return i;
+}
+/*
 long long int getint(char *p, long long int min, long long int max) {
     long long int  i;
     int t = T_INT;
@@ -1245,7 +1358,7 @@ long long int getint(char *p, long long int min, long long int max) {
     if(i < min || i > max) error("% is invalid (valid is % to %)", (int)i, (int)min, (int)max);
     return i;
 }
-
+*/
 
 
 // evaluate an expression to get a string
@@ -1557,6 +1670,7 @@ char __attribute__ ((optimize("-O3"))) *getvalue(char *p, MMFLOAT *fa, long long
                             i+=(*p++)-48;
                             i*=10;
                             i+=(*p++)-48;
+                            if(i==0)error("Null character \\000 in escape sequence - use CHR$(0)","$");
                             *p1++=i;
                         } else {
                             p++;
@@ -1609,6 +1723,7 @@ char __attribute__ ((optimize("-O3"))) *getvalue(char *p, MMFLOAT *fa, long long
                                         p++;
                                         i = (i << 4) | ((toupper(*p) >= 'A') ? toupper(*p) - 'A' + 10 : *p - '0');
                                         p++;
+                                        if(i==0)error("Null character \\&00 in escape sequence - use CHR$(0)","$");
                                         *p1++=i;
                                     } else *p1++='x';
                                     break;
@@ -1660,7 +1775,7 @@ char *findline(int nbr, int mustfind) {
 
     while(1) {
         if(p[0] == 0 && p[1] == 0) {
-            if (Option.ProgFlashSize != PROG_FLASH_SIZE){
+            if (Option.ProgFlashSize == PROG_FLASH_SIZE){
                if(j==0){
                  j=1;
                  p = next;
@@ -1737,7 +1852,7 @@ char *findlabel(char *labelptr) {
     // now do the search
     while(1) {
         if(p[0] == 0 && p[1] == 0){                                  // end of the program
-            if (Option.ProgFlashSize != PROG_FLASH_SIZE){
+            if (Option.ProgFlashSize == PROG_FLASH_SIZE){
                 if(j==0){
                   j=1;
                   p = next;
@@ -2742,6 +2857,7 @@ void makeargs(char **p, int maxargs, char *argbuf, char *argv[], int *argc, char
 //  $ = insert a string at this place
 //  @ = insert a character
 //  % = insert a number
+//  ~ = insert a long long integer
 // the optional data to be inserted is the second argument to this function
 // this uses longjump to skip back to the command input and cleanup the stack
 void MIPS16 error(char *msg, ...) {
@@ -2761,6 +2877,8 @@ void MIPS16 error(char *msg, ...) {
                 *tp = (va_arg(ap, int));
             else if(*msg == '%')                                    // insert an integer
                 IntToStr(tp, va_arg(ap, int), 10);
+            else if(*msg == '~')                                    // insert a long long integer
+                IntToStr(tp, va_arg(ap, int64_t), 10);
             else if(*msg == '|'){
             	int pin=va_arg(ap, int);// insert an pin name
             	int i=(uint32_t)PinDef[pin].sfr & 0xFFFF;
@@ -2823,7 +2941,7 @@ void MIPS16 error(char *msg, ...) {
         llist(tknbuf, CurrentLinePtr);
         p = tknbuf; skipspace(p);
         MMPrintString(MMCharPos > 1 ? "\r\n[" : "[");
-        if(CurrentLinePtr < ProgMemory + Option.ProgFlashSize) {
+        if(CurrentLinePtr < ProgMemory + PROG_FLASH_SIZE) {
             IntToStr(inpbuf, CountLines(CurrentLinePtr), 10);
             MMPrintString(inpbuf);
             StartEditPoint = CurrentLinePtr;
@@ -2841,7 +2959,8 @@ void MIPS16 error(char *msg, ...) {
     }
     PRet();
     memset(inpbuf,0,STRINGSIZE);
-   longjmp(mark, 1);
+    cleanend();
+   //longjmp(mark, 1);
 }
 
 
@@ -3164,6 +3283,7 @@ void MIPS16 ClearRuntime(void) {
     ClearStack();
     OptionExplicit = false;
     OptionEscape = false;
+    optionangle=1.0;
     DefaultType = T_NBR;
     ds18b20Timers = NULL;                                           // InitHeap() will recover the memory allocated to this array
     CloseAllFiles();
@@ -3387,15 +3507,36 @@ void checkend(char *p) {
 // leading white space is skipped and the string must be terminated with a valid terminating
 // character (space, null, comma or comment). Returns a pointer a pointer to the next
 // non space character after the matched string if found or NULL if not
+/*
 char *checkstring(char *p, char *tkn) {
     skipspace(p);                                           // skip leading spaces
     while(*tkn && (toupper(*tkn) == toupper(*p))) { tkn++; p++; }   // compare the strings
-    if(*tkn == 0 && (*p == ' ' || *p == ',' || *p == '\'' || *p == '(' || *p == 0)) {
+   // if(*tkn == 0 && (*p == ' ' || *p == ',' || *p == '\'' || *p == '(' || *p == 0)) {
+    if(*tkn == 0 && (*p == ' ' || *p == ',' || *p == '\'' || *p == '(' || *p == 0 || *p == tokenEQUAL)) {
         skipspace(p);
         return p;                                                   // if successful return a pointer to the next non space character after the matched string
     }
     return NULL;                                                    // or NULL if not
 }
+*/
+/*
+New one from Picomite fixes DIM X as INTEGER=12345 failing with no space also faster uses mytoupper and namein
+// check if the next text in an element (a basic statement) corresponds to an alpha string
+// leading white space is skipped and the string must be terminated with a valid terminating
+// character (space, null, comma or comment). Returns a pointer a pointer to the next
+// non space character after the matched string if found or NULL if not
+*/
+char *checkstring(char *p,char *tkn) {
+    skipspace(p);                                           // skip leading spaces
+    while(*tkn && (toupper(*tkn) == toupper(*p))) { tkn++; p++; }   // compare the strings
+    if(*tkn == 0 && !namein[(uint8_t)*p]){
+        skipspace(p);
+        return p;                                                   // if successful return a pointer to the next non space character after the matched string
+    }
+    return NULL;                                                    // or NULL if not
+}
+
+
 /********************************************************************************************************************************************
 A couple of I/O routines that do not belong anywhere else
 *********************************************************************************************************************************************/

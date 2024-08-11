@@ -64,7 +64,8 @@ extern int CurrentSPISpeed;
 extern char LCDAttrib;
 extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim1;
-extern void setterminal(void);
+extern void  setterminal(int height,int width);
+extern SRAM_HandleTypeDef hsram1;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -149,8 +150,10 @@ void PPinNameComma(int n) {
 
 void printoptions(void){
 //	LoadOptions();
+if(HAS_64PINS)	MMPrintString("\rARMmite F405RGT6 MMBasic Version " VERSION "\r\n");
+if(HAS_144PINS)	MMPrintString("\rARMmite F407ZGT6 MMBasic Version " VERSION "\r\n");
+if(HAS_100PINS) MMPrintString("\rARMmite F407VGT6 MMBasic Version " VERSION "\r\n");
 
-    MMPrintString("\rARMmite F407VGT6 MMBasic Version " VERSION "\r\n");
 
     if(Option.Autorun == true) PO2Str("AUTORUN", "ON");
     if(Option.Baudrate != CONSOLE_BAUDRATE) PO2Int("BAUDRATE", Option.Baudrate);
@@ -190,21 +193,36 @@ void printoptions(void){
     }
    // if(Option.DefaultBrightness!=100){
     if(HRes != 0){
-    	MMPrintString("DEFAULT BACKLIGHT ");
+    	MMPrintString("BACKLIGHT ");
     	if(Option.DefaultBrightness>100){
-    		PInt(Option.DefaultBrightness-101);MMPrintString(",R \r\n");
+    		PInt(Option.DefaultBrightness-101);MMPrintString(",REVERSE \r\n");
     	}else{
-    		PInt(Option.DefaultBrightness);PRet();
+    		PInt(Option.DefaultBrightness);;MMPrintString(",DEFAULT \r\n");
     	}
     }
 
-    if(Option.DISPLAY_CONSOLE == true) PO2Str("LCDPANEL", "CONSOLE");
+    if(Option.DISPLAY_CONSOLE == true){
+    	//PO2Str("LCDPANEL", "CONSOLE");
+       // if(Option.DefaultFont != (Option.DISPLAY_TYPE==COLOURVGA? (6<<4) | 1 : 0x01 ))PInt((Option.DefaultFont>>4) +1);
+    	PO("LCDPANEL CONSOLE");
+        if(Option.DefaultFont != 0x01 )PInt(Option.DefaultFont);
+        else if(!(Option.DefaultFC==WHITE && Option.DefaultBC==BLACK && Option.DefaultBrightness == 50 && Option.NoScroll==0))MMputchar(',');
+        if(Option.DefaultFC!=WHITE)PIntHC(Option.DefaultFC);
+        else if(!(Option.DefaultBC==BLACK && Option.DefaultBrightness == 50 && Option.NoScroll==0))MMputchar(',');
+        if(Option.DefaultBC!=BLACK)PIntHC(Option.DefaultBC);
+        else if(!(Option.DefaultBrightness == 50 && Option.NoScroll==0))MMputchar(',');
+        if(Option.DefaultBrightness != 50)PIntComma(Option.DefaultBrightness>100 ? Option.DefaultBrightness-101 : Option.DefaultBrightness );
+        else if(!(Option.DefaultBrightness == 50 && Option.NoScroll==0))MMputchar(',');
+        if(Option.NoScroll!=0)MMPrintString(",NOSCROLL");
+        PRet();
+
+    }
     if(Option.MaxCtrls != 201) PO2Int("CONTROLS", Option.MaxCtrls - 1);
     if(!Option.SerialPullup) PO2Str("SERIAL PULLUPS", "OFF");
     if(!Option.SerialConDisabled) PO2Str("SERIAL CONSOLE", "ON");
     if(Option.KeyboardConfig != NO_KEYBOARD) PO2Str("KEYBOARD", KBrdList[(int)Option.KeyboardConfig]);
     if(Option.RTC_Calibrate)PO2Int("RTC CALIBRATE", Option.RTC_Calibrate);
-    if(Option.ProgFlashSize !=0x20000){PO("PROG_FLASH_SIZE");PIntH( Option.ProgFlashSize); PRet();}  //LIBRARY
+    if(Option.ProgFlashSize !=0x0){PO("PROG_FLASH_SIZE");PIntH( Option.ProgFlashSize); PRet();}  //LIBRARY
     if(Option.FLASH_CS != 35){ PO("FLASH_CS"); PInt(Option.FLASH_CS);PRet();}
     if(Option.DefaultFont != 1){ PO("DefaultFont"); PInt(Option.DefaultFont);PRet();}
    // PO3Int("DISPLAY", Option.Height, Option.Width);
@@ -315,33 +333,42 @@ void MIPS16 OtherOptions(void) {
     tp = checkstring(cmdline, "LCDPANEL");
     if(tp) {
        //if(CurrentLinePtr) error("Invalid in a program");      G.A.
+    	int i;
         if((ttp = checkstring(tp, "CONSOLE"))) {
             if(HRes == 0) error("LCD Panel not configured");
             if(ScrollLCD == (void (*)(int ))DisplayNotSet) error("No Support on this LCD Panel");
             if(!DISPLAY_LANDSCAPE) error("Landscape only");
+            Option.NoScroll = 0;
+           // if(!(Option.DISPLAY_TYPE==IPS_4_16))Option.NoScroll=1;
             Option.Height = VRes/gui_font_height; Option.Width = HRes/gui_font_width;
             skipspace(ttp);
             Option.DefaultFC = WHITE;
             Option.DefaultBC = BLACK;
            // Option.DefaultBrightness = 100;
             if(!(*ttp == 0 || *ttp == '\'')) {
-                getargs(&ttp, 7, ",");                              // this is a macro and must be the first executable stmt in a block
+                getargs(&ttp, 9, ",");                              // this is a macro and must be the first executable stmt in a block
                 if(argc > 0) {
                     if(*argv[0] == '#') argv[0]++;                  // skip the hash if used
                    // MMPrintString("SetFont() ");PIntH((int)((getint(argv[0], 1, FONT_BUILTIN_NBR) - 1) << 4) | 1);PRet();
                     SetFont((((getint(argv[0], 1, FONT_BUILTIN_NBR) - 1) << 4) | 1));
                     Option.DefaultFont = (gui_font>>4)+1;
                 }
-                if(argc > 2) Option.DefaultFC = getint(argv[2], BLACK, WHITE);
-                if(argc > 4) Option.DefaultBC = getint(argv[4], BLACK, WHITE);
+                if(argc > 2 && *argv[2]) Option.DefaultFC = getint(argv[2], BLACK, WHITE);
+                if(argc > 4 && *argv[4]) Option.DefaultBC = getint(argv[4], BLACK, WHITE);
                 if(Option.DefaultFC == Option.DefaultBC) error("Same colours");
-                if(argc > 6) {
+                if(argc > 6 && *argv[6]) {
                 	if(Option.DefaultBrightness>100){
                 		Option.DefaultBrightness = 101+getint(argv[6], 0, 100);
                 	}else{
                 		Option.DefaultBrightness = 101+getint(argv[6], 0, 100);
                 	}
                 	SetBacklight(Option.DefaultBrightness);
+                }
+                if(argc==9){
+                    if(checkstring(argv[8],"NOSCROLL")){
+                        if(!(Option.DISPLAY_TYPE >= SSD_PANEL_START && Option.DISPLAY_TYPE <= SSD_PANEL_END))Option.NoScroll=1;
+                        else error("Invalid for this display");
+                    } else error("Syntax ???");
                 }
             } else {
                 SetFont((Option.DefaultFont-1)<<4 | 0x1);   //B7-B4 is fontno.-1 , B3-B0 is scale
@@ -355,11 +382,16 @@ void MIPS16 OtherOptions(void) {
             PromptFC = Option.DefaultFC;
             PromptBC = Option.DefaultBC;
             ClearScreen(Option.DefaultBC);
+            //Only setterminal if CONSOLE is bigger than 80*24
+            if  (Option.Width > SCREENWIDTH || Option.Height > SCREENHEIGHT){
+                 setterminal((Option.Height > SCREENHEIGHT)?Option.Height:SCREENHEIGHT,(Option.Width > SCREENWIDTH)?Option.Width:SCREENWIDTH);                                                    // or height is > 24
+            }
             return;
         }
         else if(checkstring(tp, "NOCONSOLE")) {
             Option.Height = SCREENHEIGHT; Option.Width = SCREENWIDTH;
             Option.DISPLAY_CONSOLE = 0;
+            Option.NoScroll=0;
            // Option.ColourCode = false;   //Don't change as on by default
             Option.DefaultFC = WHITE;
             Option.DefaultBC = BLACK;
@@ -367,7 +399,7 @@ void MIPS16 OtherOptions(void) {
             Option.DefaultFont=0x01;
             SetFont(((Option.DefaultFont-1)<<4) | 1);
             // Option.DefaultBrightness = 100;
-            setterminal();
+            setterminal(Option.Height,Option.Width);
             SaveOptions();
             ClearScreen(Option.DefaultBC);
             return;
@@ -375,7 +407,8 @@ void MIPS16 OtherOptions(void) {
         else if(checkstring(tp, "DISABLE")) {
         	  if(Option.DISPLAY_TYPE >= SPI_PANEL_START && Option.DISPLAY_TYPE<=SPI_PANEL_END){
 
-        	            	if(Option.LCD_CS){
+
+        		            if(Option.LCD_CS){
         	            	  ExtCurrentConfig[Option.LCD_CS]=EXT_DIG_IN;
         	            	  ExtCfg(Option.LCD_CS, EXT_NOT_CONFIG, 0);
         	            	}
@@ -384,17 +417,57 @@ void MIPS16 OtherOptions(void) {
         	            	ExtCurrentConfig[Option.LCD_Reset]=EXT_DIG_IN;
         	            	ExtCfg(Option.LCD_Reset, EXT_NOT_CONFIG, 0);
         	            	Option.LCD_CS = Option.LCD_CD  = Option.LCD_Reset  = 0;
+
         	            	SaveOptions();
 
+        	 }else{
+        	     /* release the parallel pins and stop the FSMC */
+        		 if (HAS_100PINS){
+        		   for(i=38;i<47;i++){ExtCurrentConfig[i]=EXT_DIG_IN;ExtCfg(i, EXT_NOT_CONFIG, 0);}
+        		   for(i=55;i<58;i++){ExtCurrentConfig[i]=EXT_DIG_IN;ExtCfg(i, EXT_NOT_CONFIG, 0);}
+        		   for(i=60;i<63;i++){ExtCurrentConfig[i]=EXT_DIG_IN;ExtCfg(i, EXT_NOT_CONFIG, 0);}
+        		   ExtCurrentConfig[81]=EXT_DIG_IN;ExtCfg(81, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[82]=EXT_DIG_IN;ExtCfg(82, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[85]=EXT_DIG_IN;ExtCfg(85, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[86]=EXT_DIG_IN;ExtCfg(86, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[88]=EXT_DIG_IN;ExtCfg(88, EXT_NOT_CONFIG, 0);
+        		 }else{
+          		   ExtCurrentConfig[58]=EXT_DIG_IN;ExtCfg(58, EXT_NOT_CONFIG, 0);
+          		   ExtCurrentConfig[59]=EXT_DIG_IN;ExtCfg(59, EXT_NOT_CONFIG, 0);
+          		   ExtCurrentConfig[60]=EXT_DIG_IN;ExtCfg(60, EXT_NOT_CONFIG, 0);
+          		   ExtCurrentConfig[63]=EXT_DIG_IN;ExtCfg(63, EXT_NOT_CONFIG, 0);
+          		   ExtCurrentConfig[64]=EXT_DIG_IN;ExtCfg(64, EXT_NOT_CONFIG, 0);
+
+        		   ExtCurrentConfig[65]=EXT_DIG_IN;ExtCfg(65, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[66]=EXT_DIG_IN;ExtCfg(66, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[67]=EXT_DIG_IN;ExtCfg(67, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[68]=EXT_DIG_IN;ExtCfg(68, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[77]=EXT_DIG_IN;ExtCfg(77, EXT_NOT_CONFIG, 0);
+
+        		   ExtCurrentConfig[78]=EXT_DIG_IN;ExtCfg(78, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[79]=EXT_DIG_IN;ExtCfg(79, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[82]=EXT_DIG_IN;ExtCfg(82, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[85]=EXT_DIG_IN;ExtCfg(85, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[86]=EXT_DIG_IN;ExtCfg(86, EXT_NOT_CONFIG, 0);
+
+        		   ExtCurrentConfig[114]=EXT_DIG_IN;ExtCfg(114, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[115]=EXT_DIG_IN;ExtCfg(115, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[118]=EXT_DIG_IN;ExtCfg(118, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[119]=EXT_DIG_IN;ExtCfg(119, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[123]=EXT_DIG_IN;ExtCfg(123, EXT_NOT_CONFIG, 0);
+
+        		 }
+        	     HAL_SRAM_DeInit(&hsram1);
         	 }
 
+        	Option.NoScroll=0;
         	touchdisable();
         	SaveOptions();
-            Option.Height = SCREENHEIGHT; Option.Width = SCREENWIDTH;
             if(Option.DISPLAY_CONSOLE){
-               setterminal();
+                Option.Height = SCREENHEIGHT;
+                Option.Width = SCREENWIDTH;
+                setterminal(Option.Height,Option.Width);
             }
-
             Option.DISPLAY_CONSOLE = Option.DISPLAY_TYPE = Option.DISPLAY_ORIENTATION = Option.SSDspeed = LCDAttrib = HRes = 0;
             Option.DefaultFC = WHITE; Option.DefaultBC = BLACK; Option.DefaultFont = 0x01;// Option.DefaultBrightness = 100;
             DrawRectangle = (void (*)(int , int , int , int , int )) DisplayNotSet;
@@ -450,7 +523,12 @@ void MIPS16 OtherOptions(void) {
            int i;
            if(tp) {
            	i=getint(tp,0,100);
-           	if (i!=35 && i!=77 && i!=0) error("Only 0,35 or 77 are valid");
+           	if (HAS_64PINS){
+           		if (i!=50 && i!=0) error("Only 0 or 50 are valid");
+           	}else{
+           		if (i!=35 && i!=77 && i!=0) error("Only 0,35 or 77 are valid");
+           	}
+
            	Option.FLASH_CS = i ;
            	goto saveandreset;
 

@@ -310,7 +310,7 @@ void cmd_load(void) {
         WatchdogSet = false;
         PrepareProgram(true);
         IgnorePIN = false;
-        if(Option.ProgFlashSize != PROG_FLASH_SIZE) ExecuteProgram(ProgMemory + Option.ProgFlashSize);       // run anything that might be in the library
+        if(Option.ProgFlashSize == PROG_FLASH_SIZE) ExecuteProgram(ProgMemory + Option.ProgFlashSize);       // run anything that might be in the library
         nextstmt = ProgMemory;
     }
 }

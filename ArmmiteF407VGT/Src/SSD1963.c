@@ -69,6 +69,7 @@ void InitIPS_4_16(void);
 //#define dx(...) {char s[140];sprintf(s,  __VA_ARGS__); SerUSBPutS(s); SerUSBPutS("\r\n");}
 void ScrollILI9341(int lines);
 void InitILI9341(void);
+extern void myMX_FSMC_Init(void);
 typedef struct
 {
   __IO uint16_t REG;
@@ -84,6 +85,7 @@ extern int LCD_BL_Period;
 extern int gui_inverse;
 extern void DoBlit(int x1, int y1, int x2, int y2, int w, int h);
 extern TIM_HandleTypeDef htim1;
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -148,7 +150,7 @@ void ConfigDisplaySSD(char *p) {
 // initialise the display controller
 // this is used in the initial boot sequence of the Micromite
 void InitDisplaySSD(int fullinit) {
-
+    int i;
 	if(!((Option.DISPLAY_TYPE >= SSD_PANEL_START && Option.DISPLAY_TYPE <= SSD_PANEL_END) || (Option.DISPLAY_TYPE >= P16_PANEL_START &&  Option.DISPLAY_TYPE <= P16_PANEL_END )) ) return;
 	// ensure LCDAttrib is cleared at start.
 	SSD1963rgb=0b0;
@@ -286,6 +288,42 @@ void InitDisplaySSD(int fullinit) {
    //     SSD1963PixelFormat=0b01110000;	//PIXEL data interface 24-bit
    // }
     if(fullinit){
+         if (HAS_100PINS){
+     	   for(i=38;i<47;i++)SetAndReserve(i, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   for(i=55;i<58;i++)SetAndReserve(i, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   for(i=60;i<63;i++)SetAndReserve(i, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   SetAndReserve(81, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   SetAndReserve(82, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   SetAndReserve(85, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   SetAndReserve(86, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+     	   SetAndReserve(88, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+        }else{
+
+    	   SetAndReserve(58, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(59, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(60, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(63, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(64, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(65, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(66, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(67, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(68, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(77, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(78, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(79, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(82, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(85, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(86, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(114, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(115, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(118, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(119, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(123, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+
+        }
+    	myMX_FSMC_Init();
+
+
         if(DISPLAY_LANDSCAPE) {
             VRes=DisplayVRes;
             HRes=DisplayHRes;
@@ -1587,6 +1625,7 @@ void DisplayPutC(char c) {
                     //if(CurrentX < 0)CurrentX = 0;
                     if(CurrentX < 0){  //Go to end of previous line
                     	CurrentY -= gui_font_height ;                  //Go up one line
+                    	if (CurrentY < 0) CurrentY = 0;
                     	CurrentX = (Option.Width-1) * gui_font_width;  //go to last character
 
                     }
@@ -1594,11 +1633,16 @@ void DisplayPutC(char c) {
         case '\r':  CurrentX = 0;
                     return;
         case '\n':  CurrentY += gui_font_height;
-                    if(CurrentY + gui_font_height >= VRes) {
-                        ScrollLCD(CurrentY + gui_font_height - VRes);
-                        CurrentY -= (CurrentY + gui_font_height - VRes);
-                    }
-                    return;
+        if(CurrentY + gui_font_height >= VRes) {
+            //if(Option.NoScroll && Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
+            if(Option.NoScroll && Option.DISPLAY_CONSOLE){ClearScreen(gui_bcolour);CurrentX=0;CurrentY=0;}
+            else {
+                ScrollLCD(CurrentY + gui_font_height - VRes);
+                CurrentY -= (CurrentY + gui_font_height - VRes);
+            }
+        }
+        return;
+
         case '\t':  do {
                         DisplayPutC(' ');
                     } while((CurrentX/gui_font_width) % Option.Tab);

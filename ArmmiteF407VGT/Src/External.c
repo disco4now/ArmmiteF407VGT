@@ -56,12 +56,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DEFINE_PINDEF_TABLE
 
 int ExtCurrentConfig[NBR_PINS_MAXCHIP + 1];
-unsigned char ADCbits[55];
+//unsigned char ADCbits[55];
+volatile unsigned char ADCbits[MAX_ANALOGUE_PIN_PACKAGE+1];
+
 volatile int INT1Count, INT1Value, INT1InitTimer, INT1Timer;
 volatile int INT2Count, INT2Value, INT2InitTimer, INT2Timer;
 volatile int INT3Count, INT3Value, INT3InitTimer, INT3Timer;
 volatile int INT4Count, INT4Value, INT4InitTimer, INT4Timer;
-volatile uint64_t INT5Count, INT5Value, INT5InitTimer, INT5Timer;
+//volatile uint64_t INT5Count, INT5Value, INT5InitTimer, INT5Timer;
 GPIO_InitTypeDef GPIO_InitDef, IR_InitDef;
 int InterruptUsed;
 extern TIM_HandleTypeDef htim2;
@@ -72,7 +74,7 @@ extern ADC_HandleTypeDef hadc2;
 extern ADC_HandleTypeDef hadc3;
 extern void MX_TIM8_Init(void);
 extern TIM_HandleTypeDef htim8;
-extern volatile uint64_t Count5High;
+//extern volatile uint64_t Count5High;
 extern void dacclose(void);
 extern void ADCclose(void);
 extern void CNInterrupt(void);
@@ -121,6 +123,7 @@ static void MX_TIM14_Init(int prescale)
   /* USER CODE END TIM14_Init 2 */
 
 }
+const MMFLOAT ADCdiv[13]={0,0,0,0,0,0,0,0,255.0,0,1023.0,0,4095.0,};
 int ADC_init(int32_t pin)
 {
 	int ADCinuse=1,resolution;
@@ -332,12 +335,30 @@ The only actions a command can do to change the program flow is to change nextst
 execute longjmp(mark, 1) if it wants to abort the program.
 
 ********************************************************************************************/
+
 uint8_t aMAP[16]={23,24,25,26,29,30,31,32,67,68,69,70,71,72,76,77};
 uint8_t bMAP[16]={35,36,37,89,90,91,92,93,95,96,47,48,51,52,53,54};
 uint8_t cMAP[16]={15,16,17,18,33,34,63,64,65,66,78,79,80,7,8,9};
 uint8_t dMAP[16]={81,82,83,84,85,86,87,88,55,56,57,58,59,60,61,62};
 uint8_t eMAP[16]={97,98,1,2,3,4,5,38,39,40,41,42,43,44,45,46};
+
+uint8_t aMAP144[16]={23,24,25,26,29,30,31,32,67,68,69,70,71,72,76,77};
+uint8_t bMAP144[16]={35,36,37,89,90,91,92,93,95,96,47,48,51,52,53,54};
+uint8_t cMAP144[16]={15,16,17,18,33,34,63,64,65,66,78,79,80,7,8,9};
+uint8_t dMAP144[16]={81,82,83,84,85,86,87,88,55,56,57,58,59,60,61,62};
+uint8_t eMAP144[16]={97,98,1,2,3,4,5,38,39,40,41,42,43,44,45,46};
+uint8_t fMAP144[16]={81,82,83,84,85,86,87,88,55,56,57,58,59,60,61,62};
+uint8_t gMAP144[16]={97,98,1,2,3,4,5,38,39,40,41,42,43,44,45,46};
+
+uint8_t aMAP64[16]={14,15,16,17,20,21,22,23,41,42,43,44,45,46,49,50};
+uint8_t bMAP64[16]={26,27,28,55,56,57,58,59,61,62,29,30,33,34,35,36};
+uint8_t cMAP64[16]={8,9,10,11,24,25,37,38,39,40,51,52,53,2,3,4};
+
+
+//if(HAS_100PINS){;}
+
 int codemap(char code, int pin){
+	if(HAS_100PINS){
 		if(code=='A' || code=='a'){
 			if(pin>15 || pin<0) error("Invalid pin");
 			return (int)aMAP[pin];
@@ -354,6 +375,43 @@ int codemap(char code, int pin){
 			if(pin>15 || pin<0) error("Invalid pin");
 			return (int)eMAP[pin];
 		}
+	}else if(HAS_144PINS){
+		if(code=='A' || code=='a'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)aMAP144[pin];
+		} else if(code=='B' || code=='b'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)bMAP144[pin];
+		} else if(code=='C' || code=='c'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)cMAP144[pin];
+		} else if(code=='D' || code=='d'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)dMAP144[pin];
+		} else if(code=='E' || code=='e'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)eMAP144[pin];
+		} else if(code=='F' || code=='f'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)fMAP144[pin];
+		} else if(code=='G' || code=='g'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)gMAP144[pin];
+		}
+
+	}else if(HAS_64PINS){
+		if(code=='A' || code=='a'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)aMAP64[pin];
+		} else if(code=='B' || code=='b'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)bMAP64[pin];
+		} else if(code=='C' || code=='c'){
+			if(pin>15 || pin<0) error("Invalid pin");
+			return (int)cMAP64[pin];
+		}
+	}
+
 	return 0;
 }
 int codecheck(char *line){
@@ -606,9 +664,11 @@ void fun_pin(void) {
     	{
     		/* ADC conversion completed */
     		/*##-5- Get the converted value of regular channel  ########################*/
-    		if(ADCbits[pin]==12)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/(MMFLOAT)0XFFF * VCC;
-			else if(ADCbits[pin]==10)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/(MMFLOAT)0X3FF * VCC;
-			else if(ADCbits[pin]==8)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/(MMFLOAT)0XFF * VCC;
+    		//ADCdiv[ADCbits[ADCchannelB]];
+    		fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/ADCdiv[ADCbits[pin]] * VCC;
+    		//if(ADCbits[pin]==12)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/(MMFLOAT)0XFFF * VCC;
+			//else if(ADCbits[pin]==10)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/(MMFLOAT)0X3FF * VCC;
+			//else if(ADCbits[pin]==8)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc1))/(MMFLOAT)0XFF * VCC;
     	}
     	if (HAL_ADC_DeInit(&hadc1) != HAL_OK)
     	{
@@ -649,9 +709,12 @@ void fun_pin(void) {
     	{
     		/* ADC conversion completed */
     		/*##-5- Get the converted value of regular channel  ########################*/
-    		if(ADCbits[pin]==12)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/(MMFLOAT)0XFFF * VCC;
-			else if(ADCbits[pin]==10)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/(MMFLOAT)0X3FF * VCC;
-			else if(ADCbits[pin]==8)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/(MMFLOAT)0XFF * VCC;
+    		fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/ADCdiv[ADCbits[pin]] * VCC;
+    		//if(ADCbits[pin]==12)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/(MMFLOAT)0XFFF * VCC;
+			//else if(ADCbits[pin]==10)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/(MMFLOAT)0X3FF * VCC;
+			//else if(ADCbits[pin]==8)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc2))/(MMFLOAT)0XFF * VCC;
+
+
     	}
     	if (HAL_ADC_DeInit(&hadc2) != HAL_OK)
     	{
@@ -692,9 +755,10 @@ void fun_pin(void) {
     		{
     			/* ADC conversion completed */
     			/*##-5- Get the converted value of regular channel  ########################*/
-    			if(ADCbits[pin]==12)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/(MMFLOAT)0XFFF * VCC;
-    			else if(ADCbits[pin]==10)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/(MMFLOAT)0X3FF * VCC;
-    			else if(ADCbits[pin]==8)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/(MMFLOAT)0XFF * VCC;
+    			fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/ADCdiv[ADCbits[pin]] * VCC;
+    			//if(ADCbits[pin]==12)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/(MMFLOAT)0XFFF * VCC;
+    			//else if(ADCbits[pin]==10)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/(MMFLOAT)0X3FF * VCC;
+    			//else if(ADCbits[pin]==8)fret=(MMFLOAT)(HAL_ADC_GetValue(&hadc3))/(MMFLOAT)0XFF * VCC;
     		}
     		if (HAL_ADC_DeInit(&hadc3) != HAL_OK)
     		{
@@ -1542,10 +1606,14 @@ void ClearExternalIO(void) {
 	int i;
 
     PWMClose(0);
-	PWMClose(1);                                       // close any running PWM output
-    PWMClose(2);                           // same for serial ports
-    if(Option.SerialConDisabled) SerialClose(1);
-    SerialClose(2); SerialClose(3);
+	PWMClose(1);                                         // close any running PWM output
+	if(!HAS_64PINS){
+		PWMClose(2);
+		PWMClose(3);
+	}
+    if(Option.SerialConDisabled) SerialClose(1);        // same for serial ports
+    SerialClose(2);
+    SerialClose(3);
     SerialClose(4);                                // same for serial ports
     SPIClose();
     SPI2Close();
@@ -1557,7 +1625,7 @@ void ClearExternalIO(void) {
     IrState = IR_CLOSED;
     IrInterrupt = NULL;
     IrGotMsg = false;
-    i2c2_disable();                                                  // close I2C
+    if(!HAS_64PINS)i2c2_disable();                                  // close I2C2
     KeypadInterrupt = NULL;
     *lcd_pins = 0;                                                  // close the LCD
     ds18b20Timer = -1;                                              // turn off the ds18b20 timer
@@ -1599,6 +1667,12 @@ void initExtIO(void) {
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	__HAL_RCC_GPIOE_CLK_ENABLE();
 	__HAL_RCC_GPIOH_CLK_ENABLE();
+	if(HAS_144PINS){
+	__HAL_RCC_GPIOF_CLK_ENABLE();
+	__HAL_RCC_GPIOG_CLK_ENABLE();
+	//__HAL_RCC_GPIOH_CLK_ENABLE();
+	}
+
 	for(i = 1; i < NBRPINS + 1; i++) {
         if(CheckPin(i, CP_NOABORT | CP_IGNORE_INUSE | CP_IGNORE_RESERVED | CP_IGNORE_BOOTRES)){
             ExtCfg(i, EXT_NOT_CONFIG, 0);							// all set to unconfigured
@@ -1756,6 +1830,13 @@ void ExtCfg(int pin, int cfg, int option) {
 	if(cfg == EXT_NOT_CONFIG) ExtSet(pin, 0);						// set the default output to low
 
 }
+
+// round a float to an integer
+unsigned short FloatToUint16(MMFLOAT x) {
+    if(x<0 || x > 3120 )
+        error("Number range");
+    return (x >= 0 ? (unsigned short)(x + 0.5) : (unsigned short)(x - 0.5)) ;
+}
 void __attribute__ ((optimize("-O2"))) bitstream(int pin, unsigned short *data, int num){
 	unsigned short now;
 	for(int i=0;i<num;i++){
@@ -1785,8 +1866,7 @@ void cmd_bitbang(void){
 	}
 	tp = checkstring(cmdline, "BITSTREAM");
 	if(tp) {
-		void *ptr1 = NULL;
-		int i,num;
+		int i,num,size;
 		uint32_t pin;
 		MMFLOAT *a1float=NULL;
 		int64_t *a1int=NULL;
@@ -1801,37 +1881,24 @@ void cmd_bitbang(void){
         if(IsInvalidPin(pin)) error("Invalid pin");
         if(!(ExtCurrentConfig[pin] == EXT_NOT_CONFIG || ExtCurrentConfig[pin] == EXT_DIG_OUT))  error("Pin | is in use",pin);
         ExtCfg(pin, EXT_DIG_OUT, 0);
-        ptr1 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(vartbl[VarIndex].type & T_NBR) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 2 must be an array");
-            }
-            if((vartbl[VarIndex].dims[0] - OptionBase) < num-1)error("Array too small");
-            a1float = (MMFLOAT *)ptr1;
-        } else if(vartbl[VarIndex].type & T_INT) {
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            if(vartbl[VarIndex].dims[0] <= 0) {		// Not an array
-                error("Argument 2 must be an array");
-            }
-            if((vartbl[VarIndex].dims[0] - OptionBase) < num-1)error("Array too small");
-            a1int = (int64_t *)ptr1;
-        } else error("Argument 2 must be an array");
-        data=GetTempMemory(num * sizeof(unsigned int));
+        size=parsenumberarray(argv[4],&a1float, &a1int, 3, 1, NULL, false);
+        if(size < num)error("Array too small");
+        data=GetTempMemory(num * sizeof(unsigned short));
         if(a1float!=NULL){
-            for(i=0; i< num;i++)data[i]= FloatToInt32(*a1float++);
+            for(i=0; i< num;i++)data[i]= FloatToUint16(*a1float++ *21);
+            if (data[0]>20) data[0]-=5;
+            MX_TIM14_Init(3);  //21MHz
+
         } else {
             for(i=0; i< num;i++){
+            	if(*a1int <0 || *a1int>65535)error("Number range");
                 data[i]= *a1int++ ;
+                MX_TIM14_Init(83);   //1 MHz
             }
         }
-        for(i=0; i< num;i++){
-            data[i]*=20;
-        }
-        data[0]-=2;
+
         __disable_irq();
-        MX_TIM14_Init(3);
-    	HAL_TIM_Base_Start(&htim14);
+       	HAL_TIM_Base_Start(&htim14);
     	bitstream(pin,data,num);
         HAL_TIM_Base_Stop(&htim14);
         __enable_irq();
@@ -2094,12 +2161,14 @@ void __attribute__ ((optimize("-O2"))) HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   {
 	  TM_EXTI_Handler_4();
   }
-#ifndef RGT
-  if (GPIO_Pin == GPIO_PIN_15)
-  {
+//#ifndef RGT
+  //if(HAS_100PINS){
+    if (GPIO_Pin == GPIO_PIN_15)
+    {
 	  CNInterrupt();
-  }
-#endif
+    }
+  //}
+//#endif
 }
 int IsInvalidPin(int pin) {
     if(pin < 1 || pin > NBRPINS) return true;

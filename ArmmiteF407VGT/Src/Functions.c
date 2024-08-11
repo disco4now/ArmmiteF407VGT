@@ -720,7 +720,8 @@ void fun_sqr(void) {
 // Return the tangent of the argument 'number' in radians.
 // n = TAN( number )
 void fun_tan(void) {
-	fret = tanf(getnumber(ep));
+	//fret = tanf(getnumber(ep));
+	fret = tan(getnumber(ep)/optionangle);
     targ = T_NBR;
 }
 

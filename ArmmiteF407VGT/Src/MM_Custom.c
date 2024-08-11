@@ -109,22 +109,29 @@ int d1max, d2max;
 volatile int d1pos, d2pos;
 int64_t *a1point=NULL, *a2point=NULL, *a3point=NULL;
 MMFLOAT *a1float=NULL, *a2float=NULL, *a3float=NULL;
+extern MMFLOAT ADCscale[3], ADCbottom[3];
+MMFLOAT ADCscale[3], ADCbottom[3];
+extern const MMFLOAT ADCdiv[];
 int ADCmax=0;
 volatile int ADCpos=0;
 extern int ADC_init(int32_t pin);
 extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern ADC_HandleTypeDef hadc3;
-    extern unsigned char ADCbits[55];
+
+extern unsigned char ADCbits[];
 volatile int ADCchannelA=0;
 volatile int ADCchannelB=0;
 volatile int ADCchannelC=0;
-int ADCtriggervalue=0;
+volatile int ADCcomplete = false;
 int ADCtriggerchannel=0;
 int ADCnegativeslope=0;
-char *ADCInterrupt;
 int ADCNumchannels=0;
-volatile int ADCcomplete = false;
+
+int ADCtriggervalue=0;
+int ADCtriggertimeout=0;
+char *ADCInterrupt;
+
 static void MX_TIM6_Init(int prescale, int period)
 {
 
@@ -247,6 +254,339 @@ void ADCclose(void){
     ADCInterrupt=NULL;
     ADCcomplete = false;
 }
+
+void cmd_ADC(void){
+	//short dims[MAXDIM]={0};
+	char *tp;
+    static int  prescale, period;
+    ADC_ChannelConfTypeDef sConfigA, sConfigB, sConfigC;
+    int a,b,c;
+    MMFLOAT freq=0.0;
+    //void *ptr1 = NULL;
+   // void *ptr2 = NULL;
+   // void *ptr3 = NULL;
+	tp = checkstring(cmdline, "OPEN");
+	if(tp) {
+        getargs(&tp, 9, ",");
+        if(argc<3)error("Syntax");
+        if(ADCchannelA)error("ADC already open");
+        memset(&sConfigA,0,sizeof(ADC_ChannelConfTypeDef));
+        memset(&sConfigB,0,sizeof(ADC_ChannelConfTypeDef));
+        ADCchannelA = ADCchannelB = ADCchannelC = 0;
+        if(argc == 9) {
+            InterruptUsed = true;
+            ADCInterrupt = GetIntAddress(argv[8]);                          // get the interrupt location
+        } else
+            ADCInterrupt = NULL;
+        freq=getnumber(argv[0]);
+        freq*=2;
+        prescale=(int)((MMFLOAT)(SystemCoreClock*2)/(freq*50000.0L));
+        period=(int)(((MMFLOAT)SystemCoreClock/(MMFLOAT)(prescale+1))/freq);
+        char code;
+        if((code=codecheck(argv[2])))argv[2]+=2;
+        ADCchannelA = getinteger(argv[2]);
+        if(code)ADCchannelA=codemap(code, ADCchannelA);
+        ADCbits[ADCchannelA]=12;
+        if(freq>160000.0)ADCbits[ADCchannelA]=10;
+        if(freq>320000.0)ADCbits[ADCchannelA]=8;
+
+        if(argc>3 && *argv[4]){
+        char code;
+        if((code=codecheck(argv[4])))argv[4]+=2;
+        ADCchannelB = getinteger(argv[4]);
+        if(code)ADCchannelB=codemap(code, ADCchannelB);
+        }
+
+        if(argc>5 && *argv[6]){
+            char code;
+            if((code=codecheck(argv[6])))argv[6]+=2;
+            ADCchannelC = getinteger(argv[6]);
+            if(code)ADCchannelC=codemap(code, ADCchannelC);
+        }
+
+        if(PinDef[ADCchannelA].ADCn!=ADC1){
+            ADCchannelA = ADCchannelB = ADCchannelC = 0;
+            error("First channel must use ANALOG_A pin");
+        }
+       // CheckPin(ADCchannelA, CP_IGNORE_INUSE);
+       	a=ADCchannelA;ADCchannelA=0;
+    	CheckPin(a, CP_IGNORE_INUSE);
+    	ADCchannelA=a;
+
+       // ExtCfg(ADCchannelA, EXT_ANA_IN, ADCbits[ADCchannelA]);
+       // ExtCfg(ADCchannelA, EXT_COM_RESERVED, 0);
+        ADCNumchannels=1;
+
+        if(ADCchannelB){
+            if(PinDef[ADCchannelB].ADCn!=ADC3){
+                ADCchannelA = ADCchannelB = ADCchannelC = 0;
+                error("Second channel must use ANALOG_C pin");
+            }
+           // CheckPin(ADCchannelB, CP_IGNORE_INUSE);
+            a=ADCchannelA;ADCchannelA=0;
+            b=ADCchannelB;ADCchannelB=0;
+            CheckPin(b, CP_IGNORE_INUSE);
+            ADCchannelA=a;ADCchannelB=b;
+
+            ADCbits[ADCchannelB]=ADCbits[ADCchannelA];
+            //ExtCfg(ADCchannelB, EXT_ANA_IN, ADCbits[ADCchannelB]);
+            //ExtCfg(ADCchannelB, EXT_COM_RESERVED, 0);
+            ADCNumchannels++;
+        }
+
+        if(ADCchannelC){
+            if(PinDef[ADCchannelC].ADCn!=ADC2){
+                ADCchannelA = ADCchannelB = ADCchannelC = 0;
+                error("Third channel must use ANALOG_B pin");
+            }
+            //CheckPin(ADCchannelC, CP_IGNORE_INUSE);
+            a=ADCchannelA;ADCchannelA=0;
+            b=ADCchannelB;ADCchannelB=0;
+            c=ADCchannelC;ADCchannelC=0;
+            CheckPin(c, CP_IGNORE_INUSE);
+            ADCchannelA=a;ADCchannelB=b;ADCchannelC=c;
+
+            ADCbits[ADCchannelC]=ADCbits[ADCchannelA];
+            //ExtCfg(ADCchannelC, EXT_ANA_IN, ADCbits[ADCchannelC]);
+            //ExtCfg(ADCchannelC, EXT_COM_RESERVED, 0);
+            ADCNumchannels++;
+        }
+        ExtCfg(ADCchannelA, EXT_ANA_IN, ADCbits[ADCchannelA]);
+        ExtCfg(ADCchannelA, EXT_COM_RESERVED, 0);
+        ADC_init(ADCchannelA);
+        sConfigA.Channel      = PinDef[ADCchannelA].ADCchannel;                /* Sampled channel number */
+        sConfigA.Rank         = 1;          /* Rank of sampled channel number ADCx_CHANNEL */
+        sConfigA.SamplingTime = ADC_SAMPLETIME_3CYCLES;    /* Sampling time (number of clock cycles unit) */
+        sConfigA.Offset = 0;                                 /* Parameter discarded because offset correction is disabled */
+
+
+        if (HAL_ADC_ConfigChannel(&hadc1, &sConfigA) != HAL_OK)
+        {
+            /* Channel Configuration Error */
+            ADCchannelA = ADCchannelB = ADCchannelC = 0;
+            error("HAL_ADC_ConfigChannelA");
+        }
+
+        if(ADCchannelB){
+        	ExtCfg(ADCchannelB, EXT_ANA_IN, ADCbits[ADCchannelB]);
+        	ExtCfg(ADCchannelB, EXT_COM_RESERVED, 0);
+            ADC_init(ADCchannelB);
+            sConfigB.Channel      = PinDef[ADCchannelB].ADCchannel;                /* Sampled channel number */
+            sConfigB.Rank         = 1;          /* Rank of sampled channel number ADCx_CHANNEL */
+            sConfigB.SamplingTime = ADC_SAMPLETIME_3CYCLES;    /* Sampling time (number of clock cycles unit) */
+            sConfigB.Offset = 0;                                 /* Parameter discarded because offset correction is disabled */
+
+
+            if (HAL_ADC_ConfigChannel(&hadc3, &sConfigB) != HAL_OK)
+            {
+                /* Channel Configuration Error */
+                ADCchannelA = ADCchannelB = ADCchannelC = 0;
+                error("HAL_ADC_ConfigChannelB");
+            }
+        }
+        if(ADCchannelC){
+        	ExtCfg(ADCchannelC, EXT_ANA_IN, ADCbits[ADCchannelC]);
+        	ExtCfg(ADCchannelC, EXT_COM_RESERVED, 0);
+            ADC_init(ADCchannelC);
+            sConfigC.Channel      = PinDef[ADCchannelC].ADCchannel;                /* Sampled channel number */
+            sConfigC.Rank         = 1;          /* Rank of sampled channel number ADCx_CHANNEL */
+            sConfigC.SamplingTime = ADC_SAMPLETIME_3CYCLES;    /* Sampling time (number of clock cycles unit) */
+            sConfigC.Offset = 0;                                 /* Parameter discarded because offset correction is disabled */
+
+
+            if (HAL_ADC_ConfigChannel(&hadc2, &sConfigC) != HAL_OK)
+            {
+                /* Channel Configuration Error */
+                ADCchannelA = ADCchannelB = ADCchannelC = 0;
+                error("HAL_ADC_ConfigChannelC");
+            }
+        }
+        return;
+    }
+	tp = checkstring(cmdline, "START");
+	if(tp) {
+        getargs(&tp, 17, ",");
+        if(!ADCchannelA)error("ADC not open");
+        if(!(argc >= 1))error("Argument count");
+       // int64_t *a1point;
+        //int64_t *)a1point=NULL; a2point=NULL; a3point=NULL;
+        //a1float=NULL; a2float=NULL; a3float=NULL;
+        ADCmax=0;
+        ADCpos=0;
+       // int card;
+        MMFLOAT top;
+
+        ADCscale[0]= VCC/ADCdiv[ADCbits[ADCchannelA]];
+        ADCscale[1]= VCC/ADCdiv[ADCbits[ADCchannelB]];
+        ADCscale[2]= VCC/ADCdiv[ADCbits[ADCchannelC]];
+        ADCbottom[0]=0;
+        ADCbottom[1]=0;
+        ADCbottom[2]=0;
+/*
+                void *ptr1 = NULL;
+                void *ptr2 = NULL;
+                void *ptr3 = NULL;
+                ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+                if(vartbl[VarIndex].type & T_NBR) {
+                    if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+                    if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
+                        error("Argument 1 must be float array");
+                    }
+                    a1point = (int64_t *)ptr1;
+                    a1float = (MMFLOAT *)ptr1;
+                } else error("Argument 1 must be float array");
+                ADCmax=(vartbl[VarIndex].dims[0] - OptionBase);
+                if(argc>=3 && *argv[2]){
+                   if(!ADCchannelB)error("Second channel not open");
+                   ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+                    if(vartbl[VarIndex].type & T_NBR) {
+                        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+                        if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
+                            error("Argument 2 must be float array");
+                        }
+                        a2point = (int64_t *)ptr2;
+                        a2float = (MMFLOAT *)ptr2;
+                    } else error("Argument 2 must be float array");
+                    if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
+                }
+                if(argc>=5 && *argv[4]){
+                   if(!ADCchannelC)error("Third channel not open");
+                   ptr3 = findvar(argv[4], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
+                    if(vartbl[VarIndex].type & T_NBR) {
+                        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+                        if(vartbl[VarIndex].dims[0] <= 0) {      // Not an array
+                            error("Argument 3 must be float array");
+                        }
+                        a3point = (int64_t *)ptr3;
+                        a3float = (MMFLOAT *)ptr3;
+                    } else error("Argument 3 must be float array");
+                    if((vartbl[VarIndex].dims[0] - OptionBase) !=ADCmax)error("Arrays should be the same size");
+                }
+ */               //PInt(ADCmax);
+        int card;
+        ADCmax=parsefloatrarray(argv[0], (MMFLOAT **)&a1float, 1, 1, NULL, true)-1;
+        a1point = (int64_t *)a1float;
+        if(argc>=3 && *argv[2]){
+           if(!ADCchannelB)error("Second channel not open");
+           card=parsefloatrarray(argv[2], (MMFLOAT **)&a2float, 2, 1, NULL, true)-1;
+           if(card!=ADCmax)error("Array size mismatch %,%",card, ADCmax);
+           a2point = (int64_t *)a2float;
+        }
+        if(argc>=5 && *argv[4]){
+           if(!ADCchannelC)error("Third channel not open");
+           card=parsefloatrarray(argv[4], (MMFLOAT **)&a3float, 3, 1, NULL, true)-1;
+           if(card!=ADCmax)error("Array size mismatch %,%",card, ADCmax);
+           a3point = (int64_t *)a3float;
+        }
+
+        if(argc>=9){
+            ADCbottom[0]=getnumber(argv[6]);
+            top=getnumber(argv[8]);
+            ADCscale[0]= (top-ADCbottom[0])/ADCdiv[ADCbits[ADCchannelA]];
+        }
+        if(argc>=13){
+            ADCbottom[1]=getnumber(argv[10]);
+            top=getnumber(argv[12]);
+            ADCscale[1]= (top-ADCbottom[1])/ADCdiv[ADCbits[ADCchannelB]];
+        }
+        if(argc>=17){
+            ADCbottom[2]=getnumber(argv[14]);
+            top=getnumber(argv[16]);
+            ADCscale[2]= (top-ADCbottom[2])/ADCdiv[ADCbits[ADCchannelC]];
+        }
+
+
+        if (HAL_ADC_Start(&hadc1) != HAL_OK)
+        {
+            /* Start Conversation Error */
+            error("HAL_ADC_StartA");
+        }
+        if(ADCchannelB){
+            if (HAL_ADC_Start(&hadc3) != HAL_OK)
+            {
+                /* Start Conversation Error */
+                error("HAL_ADC_StartB");
+            }
+        }
+        if(ADCchannelC){
+            if (HAL_ADC_Start(&hadc2) != HAL_OK)
+            {
+                /* Start Conversation Error */
+                error("HAL_ADC_StartC");
+            }
+        }
+        MX_TIM7_Init(prescale,period);
+        if(ADCInterrupt==NULL){
+            int i;
+            while(!ADCcomplete){
+                CheckAbort();
+                CheckSDCard();
+            }
+
+            for(i=0;i<=ADCmax;i++){
+              a1float[i]=((MMFLOAT)(ADCscale[0]*a1point[i]) + ADCbottom[0] );
+              if(ADCchannelB)a2float[i]=((MMFLOAT)(ADCscale[1]*a2point[i]) + ADCbottom[1] );
+              if(ADCchannelC)a3float[i]=((MMFLOAT)(ADCscale[2]*a3point[i]) + ADCbottom[2] );
+            }
+
+        }
+        return;
+    }
+	tp = checkstring(cmdline, "FREQUENCY");
+	if(tp) {
+        int newbits;
+        getargs(&tp, 1, ",");
+        if(!ADCchannelA)error("ADC not open");
+        freq=getnumber(argv[0]);
+        newbits=12;
+        //newbits=16;
+        if(freq>500000.0)error("Frequency greater than 500KHz");
+        //if(freq>40000.0)newbits=14;
+        //if(freq>80000.0)newbits=12;
+        if(freq>160000.0)newbits=10;
+        if(freq>320000.0)newbits=8;
+        if(ADCbits[ADCchannelA]!=newbits)error("Invalid frequency change - use CLOSE then OPEN");
+        prescale=(int)((MMFLOAT)(SystemCoreClock*2)/(freq*50000.0L));
+        period=(int)(((MMFLOAT)SystemCoreClock/(MMFLOAT)(prescale+1))/freq);
+        return;
+    }
+	tp = checkstring(cmdline, "CLOSE");
+	if(tp) {
+        if(!ADCchannelA)error("ADC not open");
+        ADCclose();
+        return;
+    }
+    tp = checkstring(cmdline, "TRIGGER");
+    if(tp) {
+        MMFLOAT voltage;
+        getargs(&tp, 5, ",");
+        if(argc!=3 && argc!=5)error("Syntax");
+        ADCtriggerchannel=getint(argv[0],1,ADCNumchannels);
+        voltage = getnumber(argv[2]);
+        if(voltage<=-VCC || voltage >=VCC) error("Invalid Voltage");
+        ADCnegativeslope=0;
+        if(voltage<0.0){
+            ADCnegativeslope=1;
+            voltage=-voltage;
+        }
+       // if(ADCbits[ADCchannelA]==12)ADCtriggervalue=(int)(voltage/VCC*(MMFLOAT)0XFFF);
+       // else if(ADCbits[ADCchannelA]==10)ADCtriggervalue=(int)(voltage/VCC*(MMFLOAT)0X3FF);
+       // else if(ADCbits[ADCchannelA]==8)ADCtriggervalue=(int)(voltage/VCC*(MMFLOAT)0XFF);
+        ADCtriggervalue=(int)(voltage/VCC*ADCdiv[ADCbits[ADCchannelA]]);
+
+
+        if(argc==5 && *argv[4]){
+            ADCtriggertimeout = getnumber(argv[4]);
+        }else{
+        	 ADCtriggertimeout =0;
+        }
+
+        return;
+    }
+
+}
+
+#ifdef OLDADC
 void cmd_ADC(void){
     char *tp;
     static int  prescale, period;
@@ -524,7 +864,66 @@ void cmd_ADC(void){
         return;
     }
 }
-//#endif
+#endif
+///*
+void cmd_DAC(void){
+	char *tp;
+    int channel;
+    uint16_t dacvalue;
+    float voltage;
+    MMFLOAT freq;
+    int  prescale, period;
+    tp = checkstring(cmdline, "STOP");
+    if(tp){
+        dacclose();
+        return;
+    }
+    tp = checkstring(cmdline, "START");
+    if(tp){
+        getargs(&tp, 5, ",");
+        if(CurrentlyPlaying != P_NOTHING) error("DAC in use");
+        if(!(argc == 5 || argc == 3))error("Argument count");
+        freq=getnumber(argv[0]);
+        if(freq>700000) error("Frequency > 700KHz");
+        freq*=2;
+        d1max=0;
+        d2max=0;
+        d1pos=0;
+        d2pos=0;
+
+        d1max=parseintegerarray(argv[2],&d1point,1,1, NULL, false)-1;
+        //PInt(d1max);
+        if(argc==5){
+          d2max=parseintegerarray(argv[4],&d2point,2,1, NULL, false)-1;
+         // PInt(d2max);
+        }
+        CurrentlyPlaying=P_DAC;
+        prescale=(int)((MMFLOAT)(SystemCoreClock*2)/(freq*50000.0L));
+        period=(int)(((MMFLOAT)SystemCoreClock/(MMFLOAT)(prescale+1))/freq);
+        MX_TIM6_Init(prescale,period);
+        return;
+    }
+    getargs(&cmdline, 9, ",");
+    if((argc & 0x01) == 0 || argc < 3) error("Invalid syntax");
+
+    channel = getint(argv[0], 1, 2);
+    voltage = getnumber(argv[2]);
+    if(voltage<0 || voltage >=VCC) error("Invalid Voltage");
+    dacvalue=(uint16_t)(voltage/VCC*4096.0);
+    switch(channel) {
+        case 1:  {
+            HAL_DAC_SetValue(&hdac1,DAC_CHANNEL_1, DAC_ALIGN_12B_R, dacvalue);
+            break;
+        }
+        case 2:  {
+            HAL_DAC_SetValue(&hdac1,DAC_CHANNEL_2, DAC_ALIGN_12B_R, dacvalue);
+            break;
+        default: error("No such DAC");
+        }
+    }
+}
+//*/
+/*
 void cmd_DAC(void){
     char *tp;
     int channel;
@@ -560,6 +959,7 @@ void cmd_DAC(void){
             d1point = (int64_t *)ptr1;
         } else error("Argument 2 must be integer array");
         d1max=(vartbl[VarIndex].dims[0] - OptionBase);
+       //PInt(d1max);
         if(argc==5){
             ptr2 = findvar(argv[4], V_FIND | V_EMPTY_OK);
             if(vartbl[VarIndex].type & T_INT) {
@@ -570,6 +970,7 @@ void cmd_DAC(void){
                 d2point = (int64_t *)ptr2;
             } else error("Argument 3 must be integer array");
             d2max=(vartbl[VarIndex].dims[0] - OptionBase);
+            //PInt(d2max);
         }
         CurrentlyPlaying=P_DAC;
         prescale=(int)((MMFLOAT)(SystemCoreClock*2)/(freq*50000.0L));
@@ -596,3 +997,5 @@ void cmd_DAC(void){
         }
     }
 }
+
+*/

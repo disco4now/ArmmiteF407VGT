@@ -93,11 +93,30 @@ int markmode=0;
 
     int OriginalFC, OriginalBC;                                     // the original fore/background colours used by MMBasic
 
+    static void (*PrintString)(char *buff)=SerUSBPutS;
+    static void (*SSputchar)(char buff)=SerUSBPutC;
+
     #define MMputchar           SerUSBPutC
     #define MMPrintString       SerUSBPutS
     #define MX470PutC(c)        {DisplayPutC(c);if(Option.Refresh)Display_Refresh();}
 
-    #define MX470Scroll(n)      if(Option.DISPLAY_CONSOLE)ScrollLCD(n)
+    void printnothing(char * dummy){
+
+    }
+  void nothingchar(char dummy){
+  //      return 0;
+   }
+
+    // Only SSD1963 displays support H/W scrolling so for other displays it is much quicker to redraw the screen than scroll it
+    // However, we don't want to redraw the serial console so we dummy out the serial writes while re-drawing the physical screen
+    // Only the SSD1963 based LCDs with hardwar scrolling will be scrolled. Others are rewritten.
+   //Xdefine MX470Scroll(n)      if(Option.DISPLAY_CONSOLE)ScrollLCD(n)
+   #define MX470Scroll(n)     if(Option.DISPLAY_CONSOLE){if(Option.DISPLAY_TYPE >= SSD_PANEL_START && Option.DISPLAY_TYPE <= SSD_PANEL_END )ScrollLCD(n);\
+	else {PrintString=printnothing;SSputchar=nothingchar;printScreen();PrintString=SerUSBPutS;SSputchar=SerUSBPutC;}}
+
+ //   else {PrintString=printnothing;printScreen();PrintString=SerUSBPutS;}}
+
+
 
 //    #define dx(...) {char s[140];sprintf(s,  __VA_ARGS__); SerUSBPutS(s); SerUSBPutS("\r\n");}
 
@@ -236,11 +255,14 @@ void cmd_edit(void) {
     if(nbrlines == 0) nbrlines++;
     if(p > EdBuff) --p;
     *p = 0;                                                         // erase the last line terminator
-
+    //Only setterminal if editor requires is bigger than 80*24
+    if  (Option.Width > SCREENWIDTH || Option.Height > SCREENHEIGHT){
+      setterminal((Option.Height > SCREENHEIGHT)?Option.Height:SCREENHEIGHT,(Option.Width > SCREENWIDTH)?Option.Width:SCREENWIDTH);                                                    // or height is > 24
+    }
     MMPrintString("\033[?1000h");                                   // Tera Term turn on mouse click report in VT200 mode
 	MMPrintString("\0337\033[2J\033[H");									// vt100 clear screen and home cursor
     MX470Display(DISPLAY_CLS);                                      // clear screen on the MX470 display only
-    setterminal();
+
 	SCursor(0, 0);
 	PrintFunctKeys(EDIT);
 
@@ -599,7 +621,7 @@ void FullScreenEditor(void) {
                             PrepareProgram(true);
                             // Create a global constant MM.CMDLINE$ containing the empty string.
                             (void) findvar("MM.CMDLINE$", V_FIND | V_DIM_VAR | T_CONST);
-                            if(Option.ProgFlashSize != PROG_FLASH_SIZE) ExecuteProgram(ProgMemory + Option.ProgFlashSize);       // run anything that might be in the library
+                            if(Option.ProgFlashSize == PROG_FLASH_SIZE) ExecuteProgram(ProgMemory + Option.ProgFlashSize);       // run anything that might be in the library
 							nextstmt = ProgMemory;
 							return;
 
@@ -757,7 +779,8 @@ void MarkMode(char *cb, char *buf) {
 							p--;												// step over the terminator to the end of the previous line
 							for(i = 0; p != EdBuff && *p != '\n'; p--, i++);	// move to the beginning of that line
 							if(*p == '\n') p++;									// and position at the start
-							if(i >= VWidth) {
+							//if(i >= VWidth) {
+							if(i > VWidth) {	                               // Fix to select last character
 								editDisplayMsg(" LINE IS TOO LONG ");
 								errmsg = true;
 								continue;
@@ -772,7 +795,8 @@ void MarkMode(char *cb, char *buf) {
 			case DOWN:	if(cury == VHeight -1) continue;
 						for(p = mark, i = curx; *p != 0 && *p != '\n'; p++, i++);// move to the end of this line
 						if(*p == 0) continue;									// skip if it is at the end of the file
-						if(i >= VWidth) {
+						//if(i >= VWidth) {
+						if(i > VWidth) { 	                                    //Fix G.A.
 							editDisplayMsg(" LINE IS TOO LONG ");
 							errmsg = true;
 							continue;
@@ -804,7 +828,8 @@ void MarkMode(char *cb, char *buf) {
             case CTRLKEY('K'):
 			case END:	if(*mark == 0) break;
 						for(p = mark, i = curx; *p != 0 && *p != '\n'; p++, i++);// move to the end of this line
-						if(i >= VWidth) {
+						//if(i >= VWidth) {
+						if(i > VWidth) { 	                                   // fix to select last char
 							editDisplayMsg(" LINE IS TOO LONG ");
 							errmsg = true;
 							continue;
@@ -1155,7 +1180,8 @@ void printLine(int ln) {
     if(Option.DISPLAY_CONSOLE) {
         MX470PutC('\r');                                            // print on the MX470 display
         p = findLine(ln, &inmulti);
-        i = VWidth - 1;
+        //i = VWidth - 1;
+        i = VWidth ;                                               //Fix to show last character
         while(i && *p && *p != '\n') {
             if(!inmulti)SetColour(p, false);                       // set the colour for the LCD display only
             else gui_fcolour = GUI_C_COMMENT;
@@ -1171,7 +1197,8 @@ void printLine(int ln) {
     if(Option.ColourCode) {
         // if we are colour coding we need to redraw the whole line
 		MMputchar('\r');                                            // display the chars after the editing point
-        i = VWidth - 1;
+        //i = VWidth - 1;
+		i = VWidth ;                                                //Fix to show last character
     } else {
         // if we are NOT colour coding we can start drawing at the current cursor position
         i = curx;

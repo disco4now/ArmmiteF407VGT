@@ -96,6 +96,8 @@ extern volatile int ConsoleTxBufHead;
 extern volatile int ConsoleTxBufTail;
 extern char ConsoleTxBuf[CONSOLE_TX_BUF_SIZE];
 extern USBD_HandleTypeDef hUsbDeviceFS;
+extern void cleanend(void);
+extern void dacclose(void);
 
 /***************************************************************************************************
 InitTimers
@@ -165,14 +167,14 @@ if(processtick){
             SoftReset();                                            // crude way of implementing a watchdog timer.
         }
     }
-#ifdef CMD_EXECUTE
+//#ifdef CMD_EXECUTE
     if (ScrewUpTimer) {
         if (--ScrewUpTimer == 0) {
             _excep_code = SCREWUP_TIMEOUT;
             SoftReset();                                            // crude way of implementing a watchdog timer.
         }
     }
-#endif
+//#endif
 
     ds18b20Timer++;
     // check if any pulse commands are running

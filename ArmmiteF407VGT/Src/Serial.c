@@ -51,6 +51,8 @@ extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart6;
+extern UART_HandleTypeDef huart3;
+extern char Feather;
 
 // variables for com1
 int com1 = 0;														// true if COM1 is enabled
@@ -282,6 +284,35 @@ void SerialOpen(char *spec) {
 		com1Tx_head = com1Tx_tail = 0;
 		ExtCfg(COM1_TX_PIN, EXT_COM_RESERVED, 0);
         if(de) error("COM specification");
+      if (HAS_64PINS && Feather){
+          /**USART3 GPIO Configuration
+          PB10     ------> USART3_TX
+          PB11     ------> USART3_RX
+          */
+          setupuart(&huart3, USART3, de, inv, s2, parity, b7, baud);
+          if(Option.SerialPullup){
+              GPIO_InitStruct.Pin = GPIO_PIN_11;
+              GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+              GPIO_InitStruct.Pull = GPIO_PULLUP;
+              GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+              GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+              HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+          }
+          if(oc){
+          	GPIO_InitStruct.Pin = GPIO_PIN_10;
+          	GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
+          	GPIO_InitStruct.Pull = GPIO_NOPULL;
+          	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+          	GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+          	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+          }
+          HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+          HAL_NVIC_EnableIRQ(USART3_IRQn);
+          huart3.Instance->CR1 |= USART_CR1_RXNEIE;
+
+
+      }else{
+
         /**USART1 GPIO Configuration
         PA9     ------> USART1_TX
         PA10     ------> USART1_RX
@@ -306,6 +337,7 @@ void SerialOpen(char *spec) {
         HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
         HAL_NVIC_EnableIRQ(USART1_IRQn);
         huart1.Instance->CR1 |= USART_CR1_RXNEIE;
+      }
         com1 = true;
 	}
     if (spec[3] == '2') {
@@ -474,7 +506,11 @@ Close a serial port.
 void SerialClose(int comnbr) {
 
 	if(comnbr == 1 && com1) {
-		HAL_UART_DeInit(&huart1);
+		if (HAS_64PINS){
+		  HAL_UART_DeInit(&huart3);
+		}else{
+		  HAL_UART_DeInit(&huart1);
+		}
 		com1 = false;
 		com1_interrupt = NULL;
         PinSetBit(COM1_RX_PIN, CNPUCLR);                            // clear the pullup or pulldown on Rx
@@ -528,6 +564,15 @@ Add a character to the serial output buffer.
 ****************************************************************************************************/
 unsigned char SerialPutchar(int comnbr, unsigned char c) {
 	if(comnbr == 1) {
+		if (HAS_64PINS){
+        int empty=(huart3.Instance->SR & USART_SR_TC) | !(huart3.Instance->CR1 & USART_CR1_TCIE) ;
+		while(com1Tx_tail == ((com1Tx_head + 1) % TX_BUFFER_SIZE)); //wait if buffer full
+		com1Tx_buf[com1Tx_head] = c;							// add the char
+		com1Tx_head = (com1Tx_head + 1) % TX_BUFFER_SIZE;		   // advance the head of the queue
+		if(empty){
+	        huart3.Instance->CR1 |= USART_CR1_TCIE;
+		}
+		}else{
         int empty=(huart1.Instance->SR & USART_SR_TC) | !(huart1.Instance->CR1 & USART_CR1_TCIE) ;
 		while(com1Tx_tail == ((com1Tx_head + 1) % TX_BUFFER_SIZE)); //wait if buffer full
 		com1Tx_buf[com1Tx_head] = c;							// add the char
@@ -535,6 +580,8 @@ unsigned char SerialPutchar(int comnbr, unsigned char c) {
 		if(empty){
 	        huart1.Instance->CR1 |= USART_CR1_TCIE;
 		}
+		}
+
 	}
 	else if(comnbr == 2) {
         int empty=(huart6.Instance->SR & USART_SR_TC) | !(huart6.Instance->CR1 & USART_CR1_TCIE) ;
@@ -577,10 +624,17 @@ Returns the number of characters waiting in the buffer
 int SerialRxStatus(int comnbr) {
 	int i = 0;
 	if(comnbr == 1) {
-	    huart1.Instance->CR1 &= ~USART_CR1_RXNEIE;
+		if (HAS_64PINS){
+	    huart3.Instance->CR1 &= ~USART_CR1_RXNEIE;
+		i = com1Rx_head - com1Rx_tail;
+	    huart3.Instance->CR1 |= USART_CR1_RXNEIE;
+		if(i < 0) i += com1_buf_size;
+		}else{
+		huart1.Instance->CR1 &= ~USART_CR1_RXNEIE;
 		i = com1Rx_head - com1Rx_tail;
 	    huart1.Instance->CR1 |= USART_CR1_RXNEIE;
 		if(i < 0) i += com1_buf_size;
+		}
 	}
 	else if(comnbr == 2) {
 	    huart6.Instance->CR1 &= ~USART_CR1_RXNEIE;
@@ -640,12 +694,21 @@ int SerialGetchar(int comnbr) {
 	int c;
     c = -1;                                                         // -1 is no data
 	if(comnbr == 1) {
+	  if(HAS_64PINS){
+	    huart3.Instance->CR1 &= ~USART_CR1_RXNEIE;
+		if(com1Rx_head != com1Rx_tail) {                            // if the queue has something in it
+			c = com1Rx_buf[com1Rx_tail];                            // get the char
+ 			com1Rx_tail = (com1Rx_tail + 1) % com1_buf_size;        // and remove from the buffer
+		}
+		huart3.Instance->CR1 |= USART_CR1_RXNEIE;
+	  }else{
 	    huart1.Instance->CR1 &= ~USART_CR1_RXNEIE;
 		if(com1Rx_head != com1Rx_tail) {                            // if the queue has something in it
 			c = com1Rx_buf[com1Rx_tail];                            // get the char
  			com1Rx_tail = (com1Rx_tail + 1) % com1_buf_size;        // and remove from the buffer
 		}
 	    huart1.Instance->CR1 |= USART_CR1_RXNEIE;
+	  }
 	}
 	else if(comnbr == 2) {
 

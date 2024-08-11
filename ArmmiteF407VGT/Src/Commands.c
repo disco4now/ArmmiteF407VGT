@@ -63,7 +63,7 @@ void execute_one_command(char *p);
 extern volatile unsigned int ScrewUpTimer;
 extern jmp_buf jmprun;
 void ListNewLine(int *ListCnt, int all);
-
+extern void cleanend(void);
 
 struct sa_data datastore[MAXRESTORE];
 int restorepointer = 0;
@@ -491,7 +491,7 @@ void MIPS16 cmd_run(void) {
     memcpy(ptr, pcmd_args, *pcmd_args + 1); // *** THW 16/4/23
 
     IgnorePIN = false;
-    if(Option.ProgFlashSize != PROG_FLASH_SIZE) ExecuteProgram(ProgMemory + Option.ProgFlashSize);       // run anything that might be in the library
+    if(Option.ProgFlashSize == PROG_FLASH_SIZE) ExecuteProgram(ProgMemory + Option.ProgFlashSize);       // run anything that might be in the library
     if(*ProgMemory != T_NEWLINE) return;                            // no program to run
     nextstmt = ProgMemory;
 }
@@ -523,7 +523,7 @@ void MIPS16 cmd_new(void) {
     ClearSavedVars();                                               // clear any saved variables
     FlashWriteInit(PROGRAM_FLASH);                     // erase program memory
     SPIClose();
-    AppendLibrary(false);
+   // AppendLibrary(false);
 	ClearProgram();
     WatchdogSet = false;
     Option.Autorun = false;
@@ -727,8 +727,10 @@ void cmd_else(void) {
 
 void cmd_end(void) {
 	checkend(cmdline);
-	longjmp(mark, 1);												// jump back to the input prompt
+	//longjmp(mark, 1);												// jump back to the input prompt
+	cleanend();
 }
+
 
 
 void cmd_select(void) {
@@ -1505,8 +1507,8 @@ void MIPS16 cmd_read(void) {
 search_again:
     while(1) {
         if(*p == 0) p++;                                            // if it is at the end of an element skip the zero marker
-        if(*p == 0 || *p == 0xff) error("No DATA to read");         // end of the program and we still need more data
-        if(*p == T_NEWLINE) lineptr = p++;
+        if(*p == 0 /*|| *p == 0xff*/) error("No DATA to read");    // 2nd 0 so end of the program and we still need more data
+        if(*p == T_NEWLINE) lineptr = p++;                         // fix as per picomite if token 255 in use
         if(*p == T_LINENBR) p += 3;
         skipspace(p);
         if(*p == T_LABEL) {                                         // if there is a label here
@@ -1549,6 +1551,7 @@ search_again:
 	                            i+=(*p2++)-48;
 	                            i*=10;
 	                            i+=(*p2++)-48;
+	                            if(i==0)error("Null character \\000 in escape sequence - use CHR$(0)","$");
 	                            *p1++=i;
 	                        } else {
 	                            p2++;
@@ -1600,6 +1603,7 @@ search_again:
 	                                        i = (i << 4) | ((toupper(*p2) >= 'A') ? toupper(*p2) - 'A' + 10 : *p2 - '0');
 	                                        p++;
 	                                        i = (i << 4) | ((toupper(*p2) >= 'A') ? toupper(*p2) - 'A' + 10 : *p2 - '0');
+	                                        if(i==0)error("Null character \\&00 in escape sequence - use CHR$(0)","$");
 	                                        p2++;
 	                                        *p1++=i;
 	                                    } else *p1++='x';

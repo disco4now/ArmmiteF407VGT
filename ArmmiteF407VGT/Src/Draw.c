@@ -120,6 +120,7 @@ MMFLOAT pidiv2=PI_VALUE/2.0, kpar = 0.5522847498 ;
 
 ****************************************************************************************************/
 void Display_Refresh(void){}
+void polygon(char *p, int close);
 
 
 // these are the GUI commands that are common to the MX170 and MX470 versions
@@ -282,7 +283,7 @@ void cmd_guiMX170(void) {
 /* This used by the BLIT commands. It uses temporary memory*/
 char *blitmemoryCmd;
 #define blitmemorysize 2560+RAMPAGESIZE
-void DoBlitCmd(int x1, int y1, int x2, int y2, int w, int h){
+void DoBlit(int x1, int y1, int x2, int y2, int w, int h){
     int max_x;
     char *buff;
     int multiplier=3;
@@ -332,6 +333,7 @@ void DoBlitCmd(int x1, int y1, int x2, int y2, int w, int h){
  * support hardware scrolling. Its 1K buffer is allocated in CCRAM so that it still
  * has memory when the Edit command uses all available temporary ram for editting.
 */
+/*
 char blitmemory[1024*1];
 void DoBlit(int x1, int y1, int x2, int y2, int w, int h){
     int max_x;
@@ -378,6 +380,7 @@ void DoBlit(int x1, int y1, int x2, int y2, int w, int h){
         FreeMemory(buff);
     }
 }
+*/
 //BLIT WRITE [#]b, x, y [,mode] now in picomite passing w,h not used in H7 and picomites.
 void cmd_blit(void){
     int x1, y1, x2, y2, w, h, bnbr;
@@ -448,7 +451,7 @@ void cmd_blit(void){
     	 if(y1 + h > VRes) h = VRes - y1;
     	 if(y2 + h > VRes) h = VRes - y2;
     	 if(w < 1 || h < 1 || x1 < 0 || x1 + w > HRes || x2 < 0 || x2 + w > HRes || y1 < 0 || y1 + h > VRes || y2 < 0 || y2 + h > VRes) return;
-    	 DoBlitCmd( x1, y1, x2, y2, w, h);
+    	 DoBlit( x1, y1, x2, y2, w, h);
      }
 }
 
@@ -511,6 +514,7 @@ void cmd_text(void) {
     GUIPrintString(x, y, ((font - 1) << 4) | scale, jh, jv, jo, fc, bc, s);
 }
 
+/*
 void  getargaddress (char *p, long long int **ip, MMFLOAT **fp, int *n){
     char *ptr=NULL;
     *fp=NULL;
@@ -572,6 +576,50 @@ void  getargaddress (char *p, long long int **ip, MMFLOAT **fp, int *n){
     	*n=1; //may be a function call
     }
 }
+*/
+// new one from Picomite with TOMs fix for LINE
+void  getargaddress (char *p, long long int **ip, MMFLOAT **fp, int *n){
+    char *ptr=NULL;
+    *fp=NULL;
+    *ip=NULL;
+    char pp[STRINGSIZE]={0};
+    strcpy(pp,(char *)p);
+    if(!isnamestart(pp[0])){ //found a literal
+        *n=1;
+        return;
+    }
+    ptr = findvar((char *)pp, V_FIND | V_EMPTY_OK | V_NOFIND_NULL);
+    if(ptr && vartbl[VarIndex].type & (T_NBR | T_INT)) {
+        if(vartbl[VarIndex].dims[0] <= 0){ //simple variable
+            *n=1;
+            return;
+        } else { // array or array element
+            if(*n == 0)*n=vartbl[VarIndex].dims[0] + 1 - OptionBase;
+            else *n = (vartbl[VarIndex].dims[0] + 1 - OptionBase)< *n ? (vartbl[VarIndex].dims[0] + 1 - OptionBase) : *n;
+            skipspace(p);
+            do {
+                p++;
+            } while(isnamechar(*p));
+            //if(*p == '!') p++;               // <--------- changed this line
+            if (*p == '!' || *p == '%') p++;  // <--------- change by TOM to fix LINE issue
+            if(*p == '(') {
+                p++;
+                skipspace(p);
+                if(*p != ')') { //array element
+                    *n=1;
+                    return;
+                }
+            }
+        }
+        if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
+        if(vartbl[VarIndex].type & T_NBR)*fp = (MMFLOAT*)ptr;
+        else *ip = (long long int *)ptr;
+    } else {
+    	*n=1; //may be a function call
+    }
+}
+
+
 
 void cmd_pixel(void) {
     int x1, y1, c=0, n=0 ,i, nc=0;
@@ -976,8 +1024,206 @@ static void fill_end_fill(int count, int ystart, int yend)
     }
     FreeMemory(nodeX);
 }
+/**** New from Picomite to allow LINEGRAPH ********************/
+void polygon(char *p, int close){
+	int xcount=0;
+	long long int *xptr=NULL, *yptr=NULL,xptr2=0, yptr2=0, *polycount=NULL, *cptr=NULL, *fptr=NULL;
+	MMFLOAT *polycountf=NULL, *cfptr=NULL, *ffptr=NULL, *xfptr=NULL, *yfptr=NULL, xfptr2=0, yfptr2=0;
+	int i, f=0, c, xtot=0, ymax=0, ymin=1000000;
+    int n=0, nx=0, ny=0, nc=0, nf=0;
+    getargs(&p, 9,",");
+    if(Option.DISPLAY_TYPE == 0) error("Display not configured");
+    getargaddress(argv[0], &polycount, &polycountf, &n);
+    if(n==1){
+    	xcount = xtot = getinteger(argv[0]);
+    	if((xcount<3 || xcount>9999) && xcount!=0)error("Invalid number of vertices");
+        getargaddress(argv[2], &xptr, &xfptr, &nx);
+        if(xcount==0){
+            xcount = xtot = nx;
+        }
+        if(nx<xtot)error("X Dimensions %", nx);
+        getargaddress(argv[4], &yptr, &yfptr, &ny);
+        if(ny<xtot)error("Y Dimensions %", ny);
+        if(xptr)xptr2=*xptr;
+        else xfptr2=*xfptr;
+        if(yptr)yptr2=*yptr;
+        else yfptr2=*yfptr;
+        c = gui_fcolour;                                    // setup the defaults
+        if(argc > 5 && *argv[6]) c = getint(argv[6], 0, WHITE);
+        if(argc > 7 && *argv[8]){
+        	main_fill_polyX=(TFLOAT  *)GetTempMemory(xtot * sizeof(TFLOAT));
+        	main_fill_polyY=(TFLOAT  *)GetTempMemory(xtot * sizeof(TFLOAT));
+        	f = getint(argv[8], 0, WHITE);
+    		fill_set_fill_color((f>>16) & 0xFF, (f>>8) & 0xFF , f & 0xFF);
+        	fill_set_pen_color((c>>16) & 0xFF, (c>>8) & 0xFF , c & 0xFF);
+        	fill_begin_fill();
+        }
+       for(i=0;i<xcount-1;i++){
+          	if(argc > 7){
+                  main_fill_polyX[main_fill_poly_vertex_count] = (xfptr==NULL ? (TFLOAT )*xptr++ : (TFLOAT )*xfptr++) ;
+                  main_fill_polyY[main_fill_poly_vertex_count] = (yfptr==NULL ? (TFLOAT )*yptr++ : (TFLOAT )*yfptr++) ;
+                  if(main_fill_polyY[main_fill_poly_vertex_count]>ymax)ymax=main_fill_polyY[main_fill_poly_vertex_count];
+                  if(main_fill_polyY[main_fill_poly_vertex_count]<ymin)ymin=main_fill_polyY[main_fill_poly_vertex_count];
+                  main_fill_poly_vertex_count++;
+          	} else {
+          		int x1=(xfptr==NULL ? *xptr++ : (int)*xfptr++);
+          		int x2=(xfptr==NULL ? *xptr : (int)*xfptr);
+          		int y1=(yfptr==NULL ? *yptr++ : (int)*yfptr++);
+          		int y2=(yfptr==NULL ? *yptr : (int)*yfptr);
+           		DrawLine(x1,y1,x2,y2, 1, c);
+           	}
+        }
+        if(argc > 7){
+            main_fill_polyX[main_fill_poly_vertex_count] = (xfptr==NULL ? (TFLOAT )*xptr++ : (TFLOAT )*xfptr++) ;
+            main_fill_polyY[main_fill_poly_vertex_count] = (yfptr==NULL ? (TFLOAT )*yptr++ : (TFLOAT )*yfptr++) ;
+            if(main_fill_polyY[main_fill_poly_vertex_count]>ymax)ymax=main_fill_polyY[main_fill_poly_vertex_count];
+            if(main_fill_polyY[main_fill_poly_vertex_count]<ymin)ymin=main_fill_polyY[main_fill_poly_vertex_count];
+            if(main_fill_polyY[main_fill_poly_vertex_count]!=main_fill_polyY[0] || main_fill_polyX[main_fill_poly_vertex_count] != main_fill_polyX[0]){
+                	main_fill_poly_vertex_count++;
+                	main_fill_polyX[main_fill_poly_vertex_count]=main_fill_polyX[0];
+                	main_fill_polyY[main_fill_poly_vertex_count]=main_fill_polyY[0];
+            }
+            main_fill_poly_vertex_count++;
+        	if(main_fill_poly_vertex_count>5){
+        		fill_end_fill(xcount,ymin,ymax);
+        	} else if(main_fill_poly_vertex_count==5){
+				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],f,f);
+				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[2],main_fill_polyY[2],main_fill_polyX[3],main_fill_polyY[3],f,f);
+				if(f!=c){
+					DrawLine(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],1,c);
+					DrawLine(main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],1,c);
+					DrawLine(main_fill_polyX[2],main_fill_polyY[2],main_fill_polyX[3],main_fill_polyY[3],1,c);
+					DrawLine(main_fill_polyX[3],main_fill_polyY[3],main_fill_polyX[4],main_fill_polyY[4],1,c);
+				}
+			} else {
+				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],c,f);
+        	}
+       } else if(close){
+    		int x1=(xfptr==NULL ? *xptr : (int)*xfptr);
+    		int x2=(xfptr==NULL ? xptr2 : (int)xfptr2);
+    		int y1=(yfptr==NULL ? *yptr : (int)*yfptr);
+    		int y2=(yfptr==NULL ? yptr2 : (int)yfptr2);
+    		DrawLine(x1,y1,x2,y2, 1, c);
+        }
+    } else {
+    	int *cc=GetTempMemory(n*sizeof(int)); //array for foreground colours
+    	int *ff=GetTempMemory(n*sizeof(int)); //array for background colours
+    	int xstart ,j, xmax=0;
+    	for(i=0;i<n;i++){
+    		if((polycountf == NULL ? polycount[i] : (int)polycountf[i])>xmax)xmax=(polycountf == NULL ? polycount[i] : (int)polycountf[i]);
+    		if(!(polycountf == NULL ? polycount[i] : (int)polycountf[i]))break;
+    		xtot+=(polycountf == NULL ? polycount[i] : (int)polycountf[i]);
+    		if((polycountf == NULL ? polycount[i] : (int)polycountf[i])<3 || (polycountf == NULL ? polycount[i] : (int)polycountf[i])>9999)error("Invalid number of vertices, polygon %",i);
+    	}
+    	n=i;
+        getargaddress(argv[2], &xptr, &xfptr, &nx);
+        if(nx<xtot)error("X Dimensions %", nx);
+        getargaddress(argv[4], &yptr, &yfptr, &ny);
+        if(ny<xtot)error("Y Dimensions %", ny);
+    	main_fill_polyX=(TFLOAT  *)GetTempMemory(xmax * sizeof(TFLOAT));
+    	main_fill_polyY=(TFLOAT  *)GetTempMemory(xmax * sizeof(TFLOAT));
+		if(argc > 5 && *argv[6]){ //foreground colour specified
+			getargaddress(argv[6], &cptr, &cfptr, &nc);
+			if(nc == 1) for(i=0;i<n;i++)cc[i] = getint(argv[6], 0, WHITE);
+			else {
+				if(nc < n) error("Foreground colour Dimensions");
+				for(i=0;i<n;i++){
+					cc[i] = (cfptr == NULL ? cptr[i] : (int)cfptr[i]);
+					if(cc[i] < 0 || cc[i] > 0xFFFFFF) error("% is invalid (valid is % to %)", (int)cc[i], 0, 0xFFFFFF);
+				}
+			}
+		} else for(i=0;i<n;i++)cc[i] = gui_fcolour;
+		if(argc > 7){ //background colour specified
+			getargaddress(argv[8], &fptr, &ffptr, &nf);
+			if(nf == 1) for(i=0;i<n;i++) ff[i] = getint(argv[8], 0, WHITE);
+			else {
+				if(nf < n) error("Background colour Dimensions");
+				for(i=0;i<n;i++){
+					ff[i] = (ffptr == NULL ? fptr[i] : (int)ffptr[i]);
+					if(ff[i] < 0 || ff[i] > 0xFFFFFF) error("% is invalid (valid is % to %)", (int)ff[i], 0, 0xFFFFFF);
+				}
+			}
+		}
+    	xstart=0;
+    	for(i=0;i<n;i++){
+            if(xptr)xptr2=*xptr;
+            else xfptr2=*xfptr;
+            if(yptr)yptr2=*yptr;
+            else yfptr2=*yfptr;
+    		ymax=0;
+    		ymin=1000000;
+    		main_fill_poly_vertex_count=0;
+        	xcount = (int)(polycountf == NULL ? polycount[i] : (int)polycountf[i]);
+            if(argc > 7 && *argv[8]){
+            	fill_set_pen_color((cc[i]>>16) & 0xFF, (cc[i]>>8) & 0xFF , cc[i] & 0xFF);
+        		fill_set_fill_color((ff[i]>>16) & 0xFF, (ff[i]>>8) & 0xFF , ff[i] & 0xFF);
+            	fill_begin_fill();
+            }
+           for(j=xstart;j<xstart+xcount-1;j++){
+            	if(argc > 7){
+                    main_fill_polyX[main_fill_poly_vertex_count] = (xfptr==NULL ? (TFLOAT )*xptr++ : (TFLOAT )*xfptr++) ;
+                    main_fill_polyY[main_fill_poly_vertex_count] = (yfptr==NULL ? (TFLOAT )*yptr++ : (TFLOAT )*yfptr++) ;
+                    if(main_fill_polyY[main_fill_poly_vertex_count]>ymax)ymax=main_fill_polyY[main_fill_poly_vertex_count];
+                    if(main_fill_polyY[main_fill_poly_vertex_count]<ymin)ymin=main_fill_polyY[main_fill_poly_vertex_count];
+                    main_fill_poly_vertex_count++;
+            	} else {
+            		int x1=(xfptr==NULL ? *xptr++ : (int)*xfptr++);
+            		int x2=(xfptr==NULL ? *xptr : (int)*xfptr);
+            		int y1=(yfptr==NULL ? *yptr++ : (int)*yfptr++);
+            		int y2=(yfptr==NULL ? *yptr : (int)*yfptr);
+            		DrawLine(x1,y1,x2,y2, 1, cc[i]);
+            	}
+            }
+            if(argc > 7){
+                main_fill_polyX[main_fill_poly_vertex_count] = (xfptr==NULL ? (TFLOAT )*xptr++ : (TFLOAT )*xfptr++) ;
+                main_fill_polyY[main_fill_poly_vertex_count] = (yfptr==NULL ? (TFLOAT )*yptr++ : (TFLOAT )*yfptr++) ;
+                if(main_fill_polyY[main_fill_poly_vertex_count]>ymax)ymax=main_fill_polyY[main_fill_poly_vertex_count];
+                if(main_fill_polyY[main_fill_poly_vertex_count]<ymin)ymin=main_fill_polyY[main_fill_poly_vertex_count];
+                if(main_fill_polyY[main_fill_poly_vertex_count]!=main_fill_polyY[0] || main_fill_polyX[main_fill_poly_vertex_count] != main_fill_polyX[0]){
+                    	main_fill_poly_vertex_count++;
+                    	main_fill_polyX[main_fill_poly_vertex_count]=main_fill_polyX[0];
+                    	main_fill_polyY[main_fill_poly_vertex_count]=main_fill_polyY[0];
+                }
+                main_fill_poly_vertex_count++;
+            	if(main_fill_poly_vertex_count>5){
+            		fill_end_fill(xcount,ymin,ymax);
+            	} else if(main_fill_poly_vertex_count==5){
+    				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],ff[i],ff[i]);
+    				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[2],main_fill_polyY[2],main_fill_polyX[3],main_fill_polyY[3],ff[i],ff[i]);
+    				if(ff[i]!=cc[i]){
+    					DrawLine(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],1,cc[i]);
+    					DrawLine(main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],1,cc[i]);
+    					DrawLine(main_fill_polyX[2],main_fill_polyY[2],main_fill_polyX[3],main_fill_polyY[3],1,cc[i]);
+    					DrawLine(main_fill_polyX[3],main_fill_polyY[3],main_fill_polyX[4],main_fill_polyY[4],1,cc[i]);
+    				}
+    			} else {
+    				DrawTriangle(main_fill_polyX[0],main_fill_polyY[0],main_fill_polyX[1],main_fill_polyY[1],main_fill_polyX[2],main_fill_polyY[2],cc[i],ff[i]);
+            	}
+            } else {
+        		int x1=(xfptr==NULL ? *xptr : (int)*xfptr);
+        		int x2=(xfptr==NULL ? xptr2 : (int)xfptr2);
+        		int y1=(yfptr==NULL ? *yptr : (int)*yfptr);
+        		int y2=(yfptr==NULL ? yptr2 : (int)yfptr2);
+        		DrawLine(x1,y1,x2,y2, 1, cc[i]);
+            	if(xfptr!=NULL)xfptr++;
+            	else xptr++;
+            	if(yfptr!=NULL)yfptr++;
+            	else yptr++;
+            }
+
+            xstart+=xcount;
+    	}
+    }
+}
+
+void cmd_polygon(void){
+    polygon(cmdline,1);
+}
 
 
+
+
+/* Orginal pre
 void cmd_polygon(void){
 	int xcount=0;
 	long long int *xptr=NULL, *yptr=NULL,xptr2=0, yptr2=0, *polycount=NULL, *cptr=NULL, *fptr=NULL;
@@ -1164,6 +1410,8 @@ void cmd_polygon(void){
     	}
     }
 }
+
+*/
 void cmd_circle(void) {
     int x, y, r, w=0, c=0, f=0, n=0 ,i, nc=0, nw=0, nf=0, na=0;
     MMFLOAT a;
@@ -1246,7 +1494,250 @@ void cmd_circle(void) {
     if(Option.Refresh)Display_Refresh();
 }
 
+static short xb0,xb1,yb0,yb1;
+void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
+    union colourmap
+    {
+        unsigned char rgbbytes[4];
+        unsigned int rgb;
+    } col;
+	col.rgb=c;
+	col.rgbbytes[0]= (unsigned char)((MMFLOAT)col.rgbbytes[0]*brightness);
+	col.rgbbytes[1]= (unsigned char)((MMFLOAT)col.rgbbytes[1]*brightness);
+	col.rgbbytes[2]= (unsigned char)((MMFLOAT)col.rgbbytes[2]*brightness);
+ 	if(((x>=xb0 && x<=xb1) && (y>=yb0 && y<=yb1)))DrawPixel(x,y,col.rgb);
+//    else PInt(x),PIntComma(y);PRet();
+}
 
+void drawAALine(MMFLOAT x0 , MMFLOAT y0 , MMFLOAT x1 , MMFLOAT y1, uint32_t c, int w)
+{
+// Ensure positive integer values for width
+	if(w < 1) w = 1;
+
+// If drawing a dot, the call drawDot function
+//if Math.abs(y1 - y0) < 1.0 && Math.abs(x1 - x0) < 1.0
+//  #drawDot (x0 + x1) / 2, (y0 + y1) / 2
+//  return
+    xb0=x0;xb1=x1;yb0=y0;yb1=y1;
+    if(xb1<xb0)swap(xb1,xb0);
+    if(yb1<yb0)swap(yb1,yb0);
+
+// steep means that m > 1
+	int steep = abs(y1 - y0) > abs(x1 - x0) ;
+// swap the co-ordinates if slope > 1 or we
+// draw backwards
+	if (steep)
+	{
+		swap(x0 , y0);
+		swap(x1 , y1);
+	}
+	if (x0 > x1)
+	{
+		swap(x0 ,x1);
+		swap(y0 ,y1);
+	}
+	//compute the slope
+	MMFLOAT dx = x1-x0;
+	MMFLOAT dy = y1-y0;
+
+	MMFLOAT gradient;
+	if (dx <= 0.0) gradient = 1;
+    else gradient=dy/dx;
+
+
+//rotate w
+	w = w * sqrt(1 + (gradient * gradient));
+
+// Handle first endpoint
+	MMFLOAT xend = round(x0);
+	MMFLOAT yend = y0 - (w - 1) * 0.5 + gradient * (xend - x0);
+	MMFLOAT xgap = 1 - (x0 + 0.5 - xend);
+	MMFLOAT xpxl1 = xend; //this will be used in the main loop
+	MMFLOAT ypxl1 = floor(yend);
+	MMFLOAT fpart = yend - floor(yend);
+	MMFLOAT rfpart = 1.0 - fpart;
+
+	if(steep){
+	  drawAAPixel(ypxl1    , xpxl1, rfpart * xgap, c);
+	  for(int i=1;i<=w;i++) drawAAPixel(ypxl1 + i, xpxl1, 1, c);
+	  drawAAPixel(ypxl1 + w, xpxl1,  fpart * xgap, c);
+	} else {
+	  drawAAPixel(xpxl1, ypxl1    , rfpart * xgap, c);
+	  for(int i=1; i<=w; i++) drawAAPixel(xpxl1, ypxl1 + i, 1, c);
+	  drawAAPixel(xpxl1, ypxl1 + w,  fpart * xgap, c);
+	}
+	MMFLOAT intery = yend + gradient; // first y-intersection for the main loop
+
+// Handle second endpoint
+	xend = round(x1);
+	yend = y1 - (w - 1) * 0.5 + gradient * (xend - x1);
+	xgap = 1 - (x1 + 0.5 - xend);
+	MMFLOAT xpxl2 = xend; // this will be used in the main loop
+	MMFLOAT ypxl2 = floor(yend);
+	fpart = yend - floor(yend);
+	rfpart = 1 - fpart;
+
+	if(steep){
+		drawAAPixel(ypxl2    , xpxl2, rfpart * xgap, c);
+		for(int i=1;i<=w;i++) drawAAPixel(ypxl2 + i, xpxl2, 1, c);
+		drawAAPixel(ypxl2 + w, xpxl2,  fpart * xgap, c);
+	} else {
+		drawAAPixel(xpxl2, ypxl2    , rfpart * xgap, c);
+		for(int i=1; i<=w; i++) drawAAPixel(xpxl2, ypxl2 + i, 1, c);
+		drawAAPixel(xpxl2, ypxl2 + w,  fpart * xgap, c);
+	}
+// main loop
+	if(steep){
+		for(int x=xpxl1 + 1; x<=xpxl2; x++){
+			fpart = intery - floor(intery);
+			rfpart = 1 - fpart;
+			MMFLOAT y = floor(intery);
+			drawAAPixel(y    , x, rfpart, c);
+			for(int i=1;i<=w;i++) drawAAPixel(y + i, x, 1, c);
+			drawAAPixel(y + w, x,  fpart, c);
+			intery = intery + gradient;
+		}
+	} else {
+		for(int x=xpxl1 + 1; x<=xpxl2; x++){
+			fpart = intery - floor(intery);
+			rfpart = 1 - fpart;
+			MMFLOAT y = floor(intery);
+			drawAAPixel(x, y    , rfpart, c);
+			for(int i=1;i<=w;i++) drawAAPixel(x, y + i, 1, c);
+			drawAAPixel(x, y + w,  fpart, c);
+			intery = intery + gradient;
+		}
+	}
+}
+
+void cmd_line(void) {
+    if(Option.DISPLAY_TYPE == 0) error("Display not configured");
+    char *p;
+    int x1, y1, x2, y2, w=0, c=0, n=0 ,i, nc=0, nw=0;
+
+        if((p=checkstring(cmdline,"PLOT"))){
+            long long int *y1ptr;
+            MMFLOAT *y1fptr;
+            int xs=0,xinc=1;
+            int ys=0,yinc=1;
+            getargs(&p, 13,",");
+            getargaddress(argv[0], &y1ptr, &y1fptr, &n);
+            if(n==1)error("Argument 1 is not an array");
+            nc=n;
+            if(argc>=3 && *argv[2])nc=getint(argv[2],1,HRes-1);
+            if(nc>n)nc=n;
+            if(argc>=5 && *argv[4])xs=getint(argv[4],0,HRes-1);
+            if(argc>=7 && *argv[6])xinc=getint(argv[6],1,HRes-1);
+            if(argc>=9 && *argv[8])ys=getint(argv[8],0,n-1);
+            if(argc>=11 && *argv[10])yinc=getint(argv[10],1,n-1);
+            c = gui_fcolour;  w = 1;                                        // setup the defaults
+            if(argc == 13) c = getint(argv[12], 0, WHITE);
+            for(i=0;i<nc-1;i+=xinc){
+                int y=ys+yinc*(i/xinc);
+                x1 = xs+i;
+                y1 = (y1fptr==NULL ? y1ptr[y] : (int)y1fptr[y]);
+                if(y1<0)y1=0;
+                if(y1>=VRes)y1=VRes-1;
+                x2 = xs+(i+xinc);
+                y2 = (y1fptr==NULL ? y1ptr[y+yinc] : (int)y1fptr[y+yinc]);
+                if(x1>=HRes)break; //can only get worse so stop now
+                if(x2>=HRes)x2=HRes-1;
+                if(y2<0)y2=0;
+                if(y2>=VRes)y2=VRes-1;
+                DrawLine(x1, y1, x2, y2, w, c);
+          }
+		} else if((p=checkstring(cmdline,"GRAPH"))){
+            char *pp=GetTempMemory(STRINGSIZE);
+            strcpy((char *)pp,(char *)p);
+            memmove(&pp[2],pp,strlen((char *)p)+1);
+            pp[0]='0';
+            pp[1]=',';
+            polygon(pp,0);
+            return;
+		} else if((p=checkstring(cmdline,"AA"))){
+			MMFLOAT x1, y1, x2, y2;
+			getargs(&p, 11,",");
+			c = gui_fcolour;  ;  w = 1;                                         // setup the defaults
+			x1 = getnumber(argv[0]);
+			y1 = getnumber(argv[2]);
+			x2 = getnumber(argv[4]);
+			y2 = getnumber(argv[6]);
+			if(argc > 7 && *argv[8]){
+				w = getint(argv[8], 1, 100);
+			}
+            if(argc == 11) c = getint(argv[10], 0, WHITE);
+			drawAALine(x1, y1, x2, y2, c, w);
+			return;
+
+		} else {
+            long long int *x1ptr, *y1ptr, *x2ptr, *y2ptr, *wptr, *cptr;
+            MMFLOAT *x1fptr, *y1fptr, *x2fptr, *y2fptr, *wfptr, *cfptr;
+            getargs(&cmdline, 11,",");
+            if(!(argc & 1) || argc < 3) error("Argument count");
+            getargaddress(argv[0], &x1ptr, &x1fptr, &n);
+            if(n != 1) {
+                if(argc<7)error("Argument count");
+                getargaddress(argv[2], &y1ptr, &y1fptr, &n);
+                getargaddress(argv[4], &x2ptr, &x2fptr, &n);
+                getargaddress(argv[6], &y2ptr, &y2fptr, &n);
+            }
+            if(n==1){
+                c = gui_fcolour;  w = 1;                                        // setup the defaults
+                x1 = getinteger(argv[0]);
+                y1 = getinteger(argv[2]);
+                if(argc>=5 && *argv[4])x2 = getinteger(argv[4]);
+                else {
+                    x2=CurrentX;CurrentX=x1;
+                }
+                if(argc>=7 && *argv[6])y2 = getinteger(argv[6]);
+                else {
+                    y2=CurrentY;CurrentY=y1;
+                }
+                if(argc > 7 && *argv[8]){
+                    w = getint(argv[8], 1, 100);
+                }
+                if(argc == 11) c = getint(argv[10], 0, WHITE);
+                DrawLine(x1, y1, x2, y2, w, c);
+            } else {
+                c = gui_fcolour;  w = 1;                                        // setup the defaults
+                if(argc > 7 && *argv[8]){
+                    getargaddress(argv[8], &wptr, &wfptr, &nw);
+                    if(nw == 1) w = getint(argv[8], 0, 100);
+                    else if(nw>1) {
+                        if(nw > 1 && nw < n) n=nw; //adjust the dimensionality
+                        for(i=0;i<nw;i++){
+                            w = (wfptr == NULL ? wptr[i] : (int)wfptr[i]);
+                            if(w < 0 || w > 100) error("% is invalid (valid is % to %)", (int)w, 0, 100);
+                        }
+                    }
+                }
+
+                if(argc == 11){
+                    getargaddress(argv[10], &cptr, &cfptr, &nc);
+                    if(nc == 1) c = getint(argv[10], 0, WHITE);
+                    else if(nc>1) {
+                        if(nc > 1 && nc < n) n=nc; //adjust the dimensionality
+                        for(i=0;i<nc;i++){
+                            c = (cfptr == NULL ? cptr[i] : (int)cfptr[i]);
+                            if(c < 0 || c > WHITE) error("% is invalid (valid is % to %)", (int)c, 0, WHITE);
+                        }
+                    }
+                }
+                for(i=0;i<n;i++){
+                    x1 = (x1fptr==NULL ? x1ptr[i] : (int)x1fptr[i]);
+                    y1 = (y1fptr==NULL ? y1ptr[i] : (int)y1fptr[i]);
+                    x2 = (x2fptr==NULL ? x2ptr[i] : (int)x2fptr[i]);
+                    y2 = (y2fptr==NULL ? y2ptr[i] : (int)y2fptr[i]);
+                    if(nw > 1) w = (wfptr==NULL ? wptr[i] : (int)wfptr[i]);
+                    if(nc > 1) c = (cfptr==NULL ? cptr[i] : (int)cfptr[i]);
+                    DrawLine(x1, y1, x2, y2, w, c);
+                }
+            }
+        }
+}
+
+
+/*
 void cmd_line(void) {
     int x1, y1, x2, y2, w=0, c=0, n=0 ,i, nc=0, nw=0;
     long long int *x1ptr, *y1ptr, *x2ptr, *y2ptr, *wptr, *cptr;
@@ -1305,7 +1796,7 @@ void cmd_line(void) {
         }
     }
 }
-
+*/
 
 void cmd_box(void) {
     int x1, y1, wi, h, w=0, c=0, f=0,  n=0 ,i, nc=0, nw=0, nf=0,hmod,wmod;
@@ -2397,7 +2888,11 @@ void SetBacklight(int intensity){
 	      SetBacklightSSD1963(intensity);         //Send the command to the SSD1963 incase it strapped that way
 	      htim1.Instance->CCR3=1000-intensity*10; //Also set the PWM pin in case its strapped that way
 	 }else if(Option.DISPLAY_TYPE==IPS_4_16 ){
-	   	htim1.Instance->CCR3=1000-intensity*10;
+		   if(Option.DefaultBrightness>100){
+			   htim1.Instance->CCR3=intensity*10;
+		   }else{
+			   htim1.Instance->CCR3=1000-intensity*10;
+		   }
 	 } else {
 	   if(Option.DefaultBrightness>100){
 		   htim1.Instance->CCR3=1000-intensity*10;

@@ -27,7 +27,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN TD */
-
+extern int canopen;
 /* USER CODE END TD */
 
 /* Private define ------------------------------------------------------------*/
@@ -387,7 +387,7 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
   /* USER CODE END I2C2_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_I2C2_CLK_DISABLE();
-  
+
     /**I2C2 GPIO Configuration    
     PB10     ------> I2C2_SCL
     PB11     ------> I2C2_SDA 
@@ -400,6 +400,106 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
   }
 
 }
+
+/**
+* @brief CAN MSP Initialization
+* This function configures the hardware resources used in this example
+* @param hcan: CAN handle pointer
+* @retval None
+*/
+void HAL_CAN_MspInit(CAN_HandleTypeDef* hcan)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  if(hcan->Instance==CAN1)
+  {
+  /* USER CODE BEGIN CAN1_MspInit 0 */
+
+  /* USER CODE END CAN1_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_CAN1_CLK_ENABLE();
+
+  if (canopen==1 || canopen==7){
+
+    /**CAN1 GPIO Configuration
+    PB8     ------> CAN1_RX
+    PB9     ------> CAN1_TX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF9_CAN1;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  }else if (canopen==2 || canopen==8){
+	// __HAL_RCC_GPIOD_CLK_ENABLE();
+    /**CAN1 GPIO Configuration
+	PD0     ------> CAN1_RX
+	PD1     ------> CAN1_TX
+	*/
+	GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+	GPIO_InitStruct.Alternate = GPIO_AF9_CAN1;
+	HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+	 /* CAN1 RX GPIO pin configuration  */
+	 // GPIO_InitStruct.Pin       = GPIO_PIN_0;
+	 // GPIO_InitStruct.Alternate = GPIO_AF9_CAN1;
+	 // HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+	 /* CAN1 TX GPIO pin configuration  */
+	 // GPIO_InitStruct.Pin       = GPIO_PIN_1;
+	 // GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+	 // GPIO_InitStruct.Pull      = GPIO_PULLUP;
+	 // GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+	 // GPIO_InitStruct.Alternate = GPIO_AF9_CAN1;
+	 // HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+
+  }
+  /* USER CODE BEGIN CAN1_MspInit 1 */
+
+  /* USER CODE END CAN1_MspInit 1 */
+  }
+
+}
+
+/**
+* @brief CAN MSP De-Initialization
+* This function freeze the hardware resources used in this example
+* @param hcan: CAN handle pointer
+* @retval None
+*/
+void HAL_CAN_MspDeInit(CAN_HandleTypeDef* hcan)
+{
+  if(hcan->Instance==CAN1)
+  {
+  /* USER CODE BEGIN CAN1_MspDeInit 0 */
+
+  /* USER CODE END CAN1_MspDeInit 0 */
+    /* Peripheral clock disable */
+    __HAL_RCC_CAN1_CLK_DISABLE();
+
+    if(canopen==1 || canopen==7){
+      /**CAN1 GPIO Configuration
+      PB8     ------> CAN1_RX
+      PB9     ------> CAN1_TX
+      */
+      HAL_GPIO_DeInit(GPIOB, GPIO_PIN_8|GPIO_PIN_9);
+    }else if(canopen==2 || canopen==8){
+     /**CAN1 GPIO Configuration
+     PD0     ------> CAN1_RX
+	 PD1     ------> CAN1_TX
+     */
+       HAL_GPIO_DeInit(GPIOD, GPIO_PIN_0|GPIO_PIN_1);
+    }
+  /* USER CODE BEGIN CAN1_MspDeInit 1 */
+
+  /* USER CODE END CAN1_MspDeInit 1 */
+  }
+
+}
+
 
 /**
 * @brief RNG MSP Initialization
@@ -1227,6 +1327,34 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
 
   /* USER CODE END USART6_MspInit 1 */
   }
+  else if(huart->Instance==USART3)
+  {
+  /* USER CODE BEGIN USART6_MspInit 0 */
+
+  /* USER CODE END USART6_MspInit 0 */
+    /* Peripheral clock enable */
+    __HAL_RCC_USART3_CLK_ENABLE();
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    /**USART3 GPIO Configuration
+    PB10     ------> USART3_TX
+    PB11     ------> USART3_RX
+    */
+    GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    /* USART3 interrupt Init */
+    HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(USART3_IRQn);
+  /* USER CODE BEGIN USART3_MspInit 1 */
+
+  /* USER CODE END USART3_MspInit 1 */
+   // MMPrintstring("USART3");
+  }
 
 }
 
@@ -1318,10 +1446,31 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* huart)
 
   /* USER CODE END USART6_MspDeInit 1 */
   }
+  else if(huart->Instance==USART3)
+   {
+   /* USER CODE BEGIN USART1_MspDeInit 0 */
+
+   /* USER CODE END USART1_MspDeInit 0 */
+     /* Peripheral clock disable */
+     __HAL_RCC_USART3_CLK_DISABLE();
+
+     /**USART1 GPIO Configuration
+     PB10     ------> USART3_TX
+     PB11     ------> USART3_RX
+     */
+     HAL_GPIO_DeInit(GPIOB, GPIO_PIN_10|GPIO_PIN_11);
+
+     /* USART1 interrupt DeInit */
+     HAL_NVIC_DisableIRQ(USART1_IRQn);
+   /* USER CODE BEGIN USART1_MspDeInit 1 */
+
+   /* USER CODE END USART1_MspDeInit 1 */
+   }
 
 }
 
 static uint32_t FSMC_Initialized = 0;
+static uint32_t FSMC_DeInitialized = 0;
 
 static void HAL_FSMC_MspInit(void){
   /* USER CODE BEGIN FSMC_MspInit 0 */
@@ -1332,6 +1481,7 @@ static void HAL_FSMC_MspInit(void){
     return;
   }
   FSMC_Initialized = 1;
+  FSMC_DeInitialized = 0;
   /* Peripheral clock enable */
   __HAL_RCC_FSMC_CLK_ENABLE();
   
@@ -1382,6 +1532,7 @@ static void HAL_FSMC_MspInit(void){
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
+ // MMPrintString("HAL_FSMC_MspInit Configured FSMC Pins \r\n");
   /* USER CODE END FSMC_MspInit 1 */
 }
 
@@ -1395,7 +1546,7 @@ void HAL_SRAM_MspInit(SRAM_HandleTypeDef* hsram){
   /* USER CODE END SRAM_MspInit 1 */
 }
 
-static uint32_t FSMC_DeInitialized = 0;
+//static uint32_t FSMC_DeInitialized = 0;
 
 static void HAL_FSMC_MspDeInit(void){
   /* USER CODE BEGIN FSMC_MspDeInit 0 */
@@ -1405,6 +1556,7 @@ static void HAL_FSMC_MspDeInit(void){
     return;
   }
   FSMC_DeInitialized = 1;
+  FSMC_Initialized = 0;
   /* Peripheral clock enable */
   __HAL_RCC_FSMC_CLK_DISABLE();
   
@@ -1438,6 +1590,8 @@ static void HAL_FSMC_MspDeInit(void){
                           |GPIO_PIN_14|GPIO_PIN_15|GPIO_PIN_0|GPIO_PIN_1 
                           |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_7);
 
+
+  //MMPrintString("HAL_FSMC_MspDeInit Release FSMC  Pins \r\n");
   /* USER CODE BEGIN FSMC_MspDeInit 1 */
 
   /* USER CODE END FSMC_MspDeInit 1 */

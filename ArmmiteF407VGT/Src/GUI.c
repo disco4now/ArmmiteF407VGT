@@ -2366,10 +2366,12 @@ void cmd_backlight(void) {
         i=getint(argv[0], 0, 100);
 		//if(HRes != 0){
 			if(argc==3){
-			  if(toupper(*argv[2]) == 'S'){
+			  //if(toupper(*argv[2]) == 'S'){
+			  if(checkstring(argv[2],(char *)"DEFAULT")){
 				 Option.DefaultBrightness=i;
 				 SaveOptions();
-			  }else if(toupper(*argv[2]) == 'R'){
+			 // }else if(toupper(*argv[2]) == 'R'){
+			  }else if(checkstring(argv[2],(char *)"REVERSE")){
 				 Option.DefaultBrightness=i+101;
 				 SaveOptions();
 			  }else{

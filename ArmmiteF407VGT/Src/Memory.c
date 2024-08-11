@@ -142,14 +142,11 @@ unsigned int mmap[128];
 /***********************************************************************************************************************
  MMBasic commands
 ************************************************************************************************************************/
-
-
 void MIPS16 cmd_memory(void) {
-	char *p;
-    char*tp;
-    tp = checkstring(cmdline, "PACK");
+	char *p,*tp,*pp;
+    tp = checkstring(cmdline, (char *)"PACK");
     if(tp){
-        getargs(&tp,7,",");
+        getargs(&tp,7,(char *)",");
         if(argc!=7)error("Syntax");
         int i,n=getinteger(argv[4]);
         if(n<=0)return;
@@ -158,25 +155,15 @@ void MIPS16 cmd_memory(void) {
         int sourcesize,destinationsize;
         void *top=NULL;
         uint64_t *from=NULL;
-        if(CheckEmpty(argv[0])){
-        void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-        if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
-            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
-            if(n>sourcesize)error("Source array too small");
-            from=(uint64_t *)ptr1;
+        if(CheckEmpty((char *)argv[0])){
+            sourcesize=parseintegerarray(argv[0],(int64_t **)&from, 1,1,NULL,false);
+            if(sourcesize<n)error("Source array too small");
         } else from=(uint64_t *)GetPokeAddr(argv[0]);
-        if(CheckEmpty(argv[2])){
-            void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
-            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+        if(CheckEmpty((char *)argv[2])){
+            destinationsize=parseintegerarray(argv[2],(int64_t **)&top, 2,1,NULL,true);
             if(destinationsize*64/size<n)error("Destination array too small");
-            top=(void *)ptr2;
         } else top=(void *)GetPokeAddr(argv[2]);
-        if((uint32_t)from % 8)error("Address not divisible by 8");
+        if((uint32_t)from % 8)error("Source address not divisible by 8");
         if(size==1){
             uint8_t *to=(uint8_t *)top;
             for(i=0;i<n;i++){
@@ -202,22 +189,71 @@ void MIPS16 cmd_memory(void) {
             }
         } else if(size==16){
             uint16_t *to=(uint16_t *)top;
-            if((uint32_t)to % 2)error("Address not divisible by 2");
+            if((uint32_t)to % 2)error("Destination address not divisible by 2");
             while(n--){
             *to++=(uint16_t)*from++;
             }
         } else if(size==32){
             uint32_t *to=(uint32_t *)top;
-            if((uint32_t)to % 4)error("Address not divisible by 4");
+            if((uint32_t)to % 4)error("Destination address not divisible by 4");
             while(n--){
             *to++=(uint32_t)*from++;
             }
         }
         return;
     }
-    tp = checkstring(cmdline, "UNPACK");
+    tp = checkstring(cmdline, ( char *)"PRINT");
     if(tp){
-        getargs(&tp,7,",");
+        char *fromp=NULL;
+        int sourcesize;
+        int64_t *aint;
+        getargs(&tp,5,( char *)",");
+        if(!(argc==5))error("Syntax");
+	    if(*argv[0] == '#') argv[0]++;
+		int fnbr = getint(argv[0],1,MAXOPENFILES);	// get the number
+        int n=getinteger(argv[2]);
+        if(CheckEmpty((char *)argv[4])){
+            sourcesize=parseintegerarray(argv[4],&aint,3,1,NULL,false);
+            if(sourcesize*8<n)error("Source array too small");
+            fromp=(char *)aint;
+        } else {
+            fromp=(char *)GetPeekAddr(argv[4]);
+        }
+        if (FileTable[fnbr].com > MAXCOMPORTS)
+        {
+            FilePutStr(n, fromp, fnbr);
+        }
+        else error("File % not open",fnbr);
+        return;
+    }
+    tp = checkstring(cmdline, (char *)"INPUT");
+    if(tp){
+        char *fromp=NULL;
+        int sourcesize;
+        int64_t *aint;
+        getargs(&tp,5,(char *)",");
+        if(!(argc==5))error("Syntax");
+	    if(*argv[0] == '#') argv[0]++;
+		int fnbr = getint(argv[0],1,MAXOPENFILES);	// get the number
+        int n=getinteger(argv[2]);
+        if(CheckEmpty((char *)argv[4])){
+            sourcesize=parseintegerarray(argv[4],&aint,3,1,NULL,false);
+            if(sourcesize*8<n)error("Source array too small");
+            fromp=(char *)aint;
+        } else {
+            fromp=(char *)GetPokeAddr(argv[4]);
+        }
+        if (FileTable[fnbr].com > MAXCOMPORTS)
+        {
+            while(!(MMfeof(fnbr)) && n--) *fromp++=FileGetChar(fnbr);
+            if(n)error("End of file");
+        }
+        else error("File % not open",fnbr);
+        return;
+    }
+    tp = checkstring(cmdline, (char *)"UNPACK");
+    if(tp){
+        getargs(&tp,7,(char *)",");
         if(argc!=7)error("Syntax");
         int i,n=getinteger(argv[4]);
         if(n<=0)return;
@@ -226,30 +262,22 @@ void MIPS16 cmd_memory(void) {
         int sourcesize,destinationsize;
         uint64_t *to=NULL;
         void *fromp=NULL;
-        if(CheckEmpty(argv[0])){
-            void *ptr1 = findvar(argv[0], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(!(ptr1 && (vartbl[VarIndex].type & T_INT)))error("Invalid source");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            sourcesize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+        if(CheckEmpty((char *)argv[0])){
+            sourcesize=parseintegerarray(argv[0],(int64_t **)&fromp, 1,1,NULL,false);
             if(sourcesize*64/size<n)error("Source array too small");
-            fromp=ptr1;
         } else {
             fromp=(void*)GetPokeAddr(argv[0]);
         }
-        if(CheckEmpty(argv[2])){
-            void *ptr2 = findvar(argv[2], V_FIND | V_EMPTY_OK | V_NOFIND_ERR);
-            if(!(ptr2 && (vartbl[VarIndex].type & T_INT)))error("Invalid destination");
-            if(vartbl[VarIndex].dims[1] != 0) error("Invalid variable");
-            destinationsize=vartbl[VarIndex].dims[0] - OptionBase + 1;
+        if(CheckEmpty((char *)argv[2])){
+            destinationsize=parseintegerarray(argv[2],(int64_t **)&to, 2,1,NULL,true);
             if(n>destinationsize)error("Destination array too small");
-            to=(uint64_t *)ptr2;
         } else to=(uint64_t *)GetPokeAddr(argv[2]);
         if((uint32_t)to % 8)error("Source address not divisible by 8");
         if(size==1){
             uint8_t *from=(uint8_t *)fromp;
             for(i=0;i<n;i++){
                 int s= i % 8;
-                *to++ = ((*from & (0x1<<s)) ? 1 : 0);
+                *to++ = ((*from & (1<<s)) ? 1 : 0);
                 if(s==7)from++;
            }
 
@@ -283,166 +311,207 @@ void MIPS16 cmd_memory(void) {
         }
         return;
     }
-	    tp = checkstring(cmdline, "COPY");
-	    if(tp){
-	    	if((p = checkstring(tp, "INTEGER"))) {
-	    		int stepin=1, stepout=1;
-	        	getargs(&p,9,",");
-	        	if(argc<5)error("Syntax");
-	        	int n=getinteger(argv[4]);
-	        	if(n<=0)return;
-	         	uint64_t *from=(uint64_t *)GetPokeAddr(argv[0]);
-	         	uint64_t *to=(uint64_t *)GetPokeAddr(argv[2]);
-	        	if((uint32_t)from % 8)error("Address not divisible by 8");
-	        	if((uint32_t)to % 8)error("Address not divisible by 8");
-	        	if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
-	        	if(argc==9)stepout=getint(argv[8],0,0xFFFF);
-	        	if(stepin==1 && stepout==1)memcpy(to, from, n*8);
-	        	else{
-	            	while(n--){
-	            		*to=*from;
-	            		to+=stepout;
-	            		from+=stepin;
-	            	}
-	        	}
-	    		return;
-	    	}
-	    	if((p = checkstring(tp, "FLOAT"))) {
-	    		int stepin=1, stepout=1;
-	        	getargs(&p,9,","); //assume byte
-	        	if(argc<5)error("Syntax");
-	        	int n=getinteger(argv[4]);
-	        	if(n<=0)return;
-	        	MMFLOAT *from=(MMFLOAT *)GetPokeAddr(argv[0]);
-	        	MMFLOAT *to=(MMFLOAT *)GetPokeAddr(argv[2]);
-	        	if((uint32_t)from % 8)error("Address not divisible by 8");
-	        	if((uint32_t)to % 8)error("Address not divisible by 8");
-	        	if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
-	        	if(argc==9)stepout=getint(argv[8],0,0xFFFF);
-	        	if(n<=0)return;
-	        	if(stepin==1 && stepout==1)memcpy(to, from, n*8);
-	        	else{
-	            	while(n--){
-	            		*to=*from;
-	            		to+=stepout;
-	            		from+=stepin;
-	            	}
-	        	}
-	    		return;
-	    	}
-	    	getargs(&tp,5,",");
-	    	if(argc!=5)error("Syntax");
-	    	char *from=(char *)GetPeekAddr(argv[0]);
-	    	char *to=(char *)GetPokeAddr(argv[2]);
-	    	int n=getinteger(argv[4]);
-	    	//memcpy(to, from, n);
-	    	memmove(to, from, n);   //from PicoMite RC8 ????
-	    	return;
-	    }
-	    tp = checkstring(cmdline, "SET");
-	    if(tp){
-	    	char *p;
-	    	if((p = checkstring(tp, "BYTE"))) {
-	        	getargs(&p,5,","); //assume byte
-	        	if(argc!=5)error("Syntax");
-	         	char *to=(char *)GetPokeAddr(argv[0]);
-	         	int val=getint(argv[2],0,255);
-	        	int n=getinteger(argv[4]);
-	        	if(n<=0)return;
-	        	memset(to, val, n);
-	    		return;
-	    	}
-	    	if((p = checkstring(tp, "SHORT"))) {
-	        	getargs(&p,5,","); //assume byte
-	        	if(argc!=5)error("Syntax");
-	         	short *to=(short *)GetPokeAddr(argv[0]);
-	        	if((uint32_t)to % 2)error("Address not divisible by 2");
-	        	short *q=to;
-	   		    short data=getint(argv[2],0,65535);
-	        	int n=getinteger(argv[4]);
-	        	if(n<=0)return;
-	        	while(n>0){
-	                *q++=data;
-	                n--;
-	        	}
-	    		return;
-	    	}
-	    	if((p = checkstring(tp, "WORD"))) {
-	        	getargs(&p,5,","); //assume byte
-	        	if(argc!=5)error("Syntax");
-	         	unsigned int *to=(unsigned int *)GetPokeAddr(argv[0]);
-	        	if((uint32_t)to % 4)error("Address not divisible by 4");
-	        	unsigned int *q=to;
-	   		    unsigned int data=getint(argv[2],0,0xFFFFFFFF);
-	        	int n=getinteger(argv[4]);
-	        	if(n<=0)return;
-	        	while(n>0){
-	                *q++=data;
-	                n--;
-	        	}
-	    		return;
-	     	}
-	    	if((p = checkstring(tp, "INTEGER"))) {
-	    		int stepin=1;
-	        	getargs(&p,7,",");
-	        	if(argc<5)error("Syntax");
-	         	uint64_t *to=(uint64_t *)GetPokeAddr(argv[0]);
-	        	if((uint32_t)to % 8)error("Address not divisible by 8");
-	        	int64_t data;
-	    		data=getinteger(argv[2]);
-	        	int n=getinteger(argv[4]);
-	        	if(argc==7)stepin=getint(argv[6],0,0xFFFF);
-	        	if(n<=0)return;
-	        	if(stepin==1)while(n--)*to++=data;
-	        	else{
-	            	while(n--){
-	            		*to=data;
-	            		to+=stepin;
-	            	}
-	        	}
-	    		return;
-	    	}
-	    	if((p = checkstring(tp, "FLOAT"))) {
-	    		int stepin=1;
-	        	getargs(&p,7,","); //assume byte
-	        	if(argc<5)error("Syntax");
-	        	MMFLOAT *to=(MMFLOAT *)GetPokeAddr(argv[0]);
-	        	if((uint32_t)to % 8)error("Address not divisible by 8");
-	        	MMFLOAT data;
-	    		data=getnumber(argv[2]);
-	        	int n=getinteger(argv[4]);
-	           	if(argc==7)stepin=getint(argv[6],0,0xFFFF);
-	        	if(n<=0)return;
-	        	if(stepin==1)while(n--)*to++=data;
-	        	else{
-	            	while(n--){
-	            		*to=data;
-	            		to+=stepin;
-	            	}
-	        	}
-	    		return;
-	    	}
-	    	getargs(&tp,5,","); //assume byte
-	    	if(argc!=5)error("Syntax");
-	     	char *to=(char *)GetPokeAddr(argv[0]);
-	     	int val=getint(argv[2],0,255);
-	    	int n=getinteger(argv[4]);
-	    	if(n<=0)return;
-	    	memset(to, val, n);
-	    	return;
+    tp = checkstring(cmdline, (char *)"COPY");
+    if(tp){
+    	if((p = checkstring(tp, (char *)"INTEGER"))) {
+    		int stepin=1, stepout=1;
+        	getargs(&p,9,(char *)",");
+        	if(argc<5)error("Syntax");
+        	int n=getinteger(argv[4]);
+        	if(n<=0)return;
+         	uint64_t *from=(uint64_t *)GetPokeAddr(argv[0]);
+         	uint64_t *to=(uint64_t *)GetPokeAddr(argv[2]);
+        	if((uint32_t)from % 8)error("Address not divisible by 8");
+        	if((uint32_t)to % 8)error("Address not divisible by 8");
+        	if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
+        	if(argc==9)stepout=getint(argv[8],0,0xFFFF);
+        	if(stepin==1 && stepout==1)memmove(to, from, n*8);
+        	else{
+                if(from<to){
+                    from+=(n-1)*stepin;
+                    to+=(n-1)*stepout;
+                    while(n--){
+                        *to=*from;
+                        to-=stepout;
+                        from-=stepin;
+                    }
+                } else {
+                    while(n--){
+                        *to=*from;
+                        to+=stepout;
+                        from+=stepin;
+                    }
+                }
+        	}
+    		return;
+    	}
+    	if((p = checkstring(tp, (char *)"FLOAT"))) {
+    		int stepin=1, stepout=1;
+        	getargs(&p,9,(char *)","); //assume byte
+        	if(argc<5)error("Syntax");
+        	int n=getinteger(argv[4]);
+        	if(n<=0)return;
+        	MMFLOAT *from=(MMFLOAT *)GetPokeAddr(argv[0]);
+        	MMFLOAT *to=(MMFLOAT *)GetPokeAddr(argv[2]);
+        	if((uint32_t)from % 8)error("Address not divisible by 8");
+        	if((uint32_t)to % 8)error("Address not divisible by 8");
+        	if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
+        	if(argc==9)stepout=getint(argv[8],0,0xFFFF);
+        	if(n<=0)return;
+        	if(stepin==1 && stepout==1)memmove(to, from, n*8);
+        	else{
+                if(from<to){
+                    from+=(n-1)*stepin;
+                    to+=(n-1)*stepout;
+                    while(n--){
+                        *to=*from;
+                        to-=stepout;
+                        from-=stepin;
+                    }
+                } else {
+                    while(n--){
+                        *to=*from;
+                        to+=stepout;
+                        from+=stepin;
+                    }
+                }
+        	}
+    		return;
+    	}
+        getargs(&tp,9,(char *)","); //assume byte
+        if(argc<5)error("Syntax");
+        int stepin=1, stepout=1;
+    	char *from=(char *)GetPeekAddr(argv[0]);
+    	char *to=(char *)GetPokeAddr(argv[2]);
+    	int n=getinteger(argv[4]);
+        if(argc>=7 && *argv[6])stepin=getint(argv[6],0,0xFFFF);
+        if(argc==9)stepout=getint(argv[8],0,0xFFFF);
+        if(n<=0)return;
+    	if(stepin==1 && stepout==1)memmove(to, from, n);
+        else {
+            if(from<to){
+                from+=(n-1)*stepin;
+                to+=(n-1)*stepout;
+                while(n--){
+                    *to=*from;
+                    to-=stepout;
+                    from-=stepin;
+                }
+            } else {
+                while(n--){
+                    *to=*from;
+                    to+=stepout;
+                    from+=stepin;
+                }
+            }
+        }
+    	return;
     }
-
+    tp = checkstring(cmdline, (char *)"SET");
+    if(tp){
+    	char *p;
+    	if((p = checkstring(tp, (char *)"BYTE"))) {
+        	getargs(&p,5,(char *)","); //assume byte
+        	if(argc!=5)error("Syntax");
+         	char *to=(char *)GetPokeAddr(argv[0]);
+         	int val=getint(argv[2],0,255);
+        	int n=getinteger(argv[4]);
+        	if(n<=0)return;
+        	memset(to, val, n);
+    		return;
+    	}
+    	if((p = checkstring(tp, (char *)"SHORT"))) {
+        	getargs(&p,5,(char *)","); //assume byte
+        	if(argc!=5)error("Syntax");
+         	short *to=(short *)GetPokeAddr(argv[0]);
+        	if((uint32_t)to % 2)error("Address not divisible by 2");
+        	short *q=to;
+   		    short data=getint(argv[2],0,65535);
+        	int n=getinteger(argv[4]);
+        	if(n<=0)return;
+        	while(n>0){
+                *q++=data;
+                n--;  
+        	}
+    		return;
+    	}
+    	if((p = checkstring(tp, (char *)"WORD"))) {
+        	getargs(&p,5,(char *)","); //assume byte
+        	if(argc!=5)error("Syntax");
+         	unsigned int *to=(unsigned int *)GetPokeAddr(argv[0]);
+        	if((uint32_t)to % 4)error("Address not divisible by 4");
+        	unsigned int *q=to;
+   		    unsigned int data=getint(argv[2],0,0xFFFFFFFF);
+        	int n=getinteger(argv[4]);
+        	if(n<=0)return;
+        	while(n>0){
+                *q++=data;
+                n--;  
+        	}
+    		return;
+     	}
+    	if((p = checkstring(tp, (char *)"INTEGER"))) {
+    		int stepin=1;
+        	getargs(&p,7,(char *)",");
+        	if(argc<5)error("Syntax");
+         	uint64_t *to=(uint64_t *)GetPokeAddr(argv[0]);
+        	if((uint32_t)to % 8)error("Address not divisible by 8");
+        	int64_t data;
+    		data=getinteger(argv[2]);
+        	int n=getinteger(argv[4]);
+        	if(argc==7)stepin=getint(argv[6],0,0xFFFF);
+        	if(n<=0)return;
+        	if(stepin==1)while(n--)*to++=data;
+        	else{
+            	while(n--){
+            		*to=data;
+            		to+=stepin;
+            	}
+        	}
+    		return;
+    	}
+    	if((p = checkstring(tp, (char *)"FLOAT"))) {
+    		int stepin=1;
+        	getargs(&p,7,(char *)","); //assume byte
+        	if(argc<5)error("Syntax");
+        	MMFLOAT *to=(MMFLOAT *)GetPokeAddr(argv[0]);
+        	if((uint32_t)to % 8)error("Address not divisible by 8");
+        	MMFLOAT data;
+    		data=getnumber(argv[2]);
+        	int n=getinteger(argv[4]);
+           	if(argc==7)stepin=getint(argv[6],0,0xFFFF);
+        	if(n<=0)return;
+        	if(stepin==1)while(n--)*to++=data;
+        	else{
+            	while(n--){
+            		*to=data;
+            		to+=stepin;
+            	}
+        	}
+    		return;
+    	}
+    	getargs(&tp,5,(char *)","); //assume byte
+    	if(argc!=5)error("Syntax");
+     	char *to=(char *)GetPokeAddr(argv[0]);
+     	int val=getint(argv[2],0,255);
+    	int n=getinteger(argv[4]);
+    	if(n<=0)return;
+    	memset(to, val, n);
+    	return;
+    }
     //-----------Output of memory command-------------
 	//-------------------------------------------------
-    int i, j, var, nbr, vsize, VarCnt,pmax;
+    int i, j,k, var, nbr, vsize, VarCnt,pmax;
     int ProgramSize, ProgramPercent, VarSize, VarPercent, GeneralSize, GeneralPercent, SavedVarSize, SavedVarSizeK, SavedVarPercent, SavedVarCnt;
     int CFunctSize, CFunctSizeK, CFunctNbr, CFunctPercent, FontSize, FontSizeK, FontNbr, FontPercent, LibrarySizeK, LibraryPercent;
     unsigned int CurrentRAM, *pint;
     //char *p;
-    pmax=SAVED_VAR_RAM_SIZE;
+    pmax=SAVEDVARS_FLASH_SIZE;
     CurrentRAM = (unsigned int)RAMEND - (unsigned int)RAMBase;
     // calculate the space allocated to variables on the heap
-    for(i = VarCnt = vsize = var = 0; var < varcnt; var++) {
+    //for(i = VarCnt = vsize = var = 0; var < varcnt; var++) {
+    for(i = VarCnt = vsize = var = 0; var < MAXVARS; var++) {
+
         if(vartbl[var].type == T_NOTYPE) continue;
         VarCnt++;  vsize += sizeof(struct s_vartbl);
         if(vartbl[var].val.s == NULL) continue;
@@ -465,12 +534,13 @@ void MIPS16 cmd_memory(void) {
     VarSize = (vsize + i + 512)/1024;                               // this is the memory allocated to variables
     VarPercent = ((vsize + i) * 100)/CurrentRAM;
     if(VarCnt && VarSize == 0) VarPercent = VarSize = 1;            // adjust if it is zero and we have some variables
-    i = UsedHeap() - i;
+   // PIntComma (UsedHeap());PIntComma (i);
+	i = UsedHeap() - i;
     if(i < 0) i = 0;
     GeneralSize = (i + 512)/1024; GeneralPercent = (i * 100)/CurrentRAM;
 
     // count the space used by saved variables (in flash)
-    p = (char *)SAVED_VAR_RAM_ADDR;
+    p = (char *)FLASH_SAVED_VAR_ADDR;
     SavedVarCnt = 0;
     while(!(*p == 0 || *p == 0xff)) {
 	unsigned char type, array;
@@ -478,6 +548,11 @@ void MIPS16 cmd_memory(void) {
         SavedVarCnt++;
         type = *p++;
         array = type & 0x80;  type &= 0x7f;                         // set array to true if it is an array
+        if(!(type==T_INT || type==T_STR || type==T_NBR)){
+        	ClearSavedVars();
+        	SavedVarCnt=0;
+        	break;
+        }
         p += strlen(p) + 1;
         if(array)
             p += (p[0] | p[1] << 8 | p[2] << 16| p[3] << 24) + 4;
@@ -492,9 +567,9 @@ void MIPS16 cmd_memory(void) {
 
         if(pmax==0)error("Saved Vars RAM corrupt");
     }
-    SavedVarSize = p - (char *)SAVED_VAR_RAM_ADDR;
+    SavedVarSize = p - (char *)FLASH_SAVED_VAR_ADDR;
     SavedVarSizeK = (SavedVarSize + 512) / 1024;
-    SavedVarPercent = (SavedVarSize * 100) / (/*PROG_FLASH_SIZE +*/ SAVED_VAR_RAM_SIZE);
+    SavedVarPercent = (SavedVarSize * 100) / (SAVEDVARS_FLASH_SIZE);
     if(SavedVarCnt && SavedVarSizeK == 0) SavedVarPercent = SavedVarSizeK = 1;        // adjust if it is zero and we have some variables
 
     // count the space used by CFunctions, CSubs and fonts
@@ -512,12 +587,48 @@ void MIPS16 cmd_memory(void) {
         }
         pint += (*pint + 4) / sizeof(unsigned int);
     }
-    CFunctPercent = (CFunctSize * 100) /  (PROG_FLASH_SIZE /* + SAVED_VAR_RAM_SIZE*/);
+    CFunctPercent = (CFunctSize * 100) /  (PROG_FLASH_SIZE /* + SAVEDVARS_FLASH_SIZE*/);
     CFunctSizeK = (CFunctSize + 512) / 1024;
     if(CFunctNbr && CFunctSizeK == 0) CFunctPercent = CFunctSizeK = 1;              // adjust if it is zero and we have some functions
-    FontPercent = (FontSize * 100) /  (PROG_FLASH_SIZE /* + SAVED_VAR_RAM_SIZE*/);
+    FontPercent = (FontSize * 100) /  (PROG_FLASH_SIZE /* + SAVEDVARS_FLASH_SIZE*/);
     FontSizeK = (FontSize + 512) / 1024;
     if(FontNbr && FontSizeK == 0) FontPercent = FontSizeK = 1;                      // adjust if it is zero and we have some functions
+
+    //Get the library size
+    LibrarySizeK = LibraryPercent = 0;
+    if(Option.ProgFlashSize == PROG_FLASH_SIZE) {
+           k = 0;
+           // first count the normal program code residing in the Library
+           p = ProgMemory + Option.ProgFlashSize;
+           while(!(p[0] == 0 && p[1] == 0)) {
+               	p++; k++;
+           }
+           while(*p == 0){ // the end of the program can have multiple zeros -count them
+               p++;k++;
+           }
+           p++; k++;    //get 0xFF that ends the program and count it
+           while((unsigned int)p & 0b11) { //count to the next word boundary
+           	p++;k++;
+           }
+
+          // now count the CFunction/CSub/Font data
+          if(CFunctionLibrary != NULL) {
+             pp = (char *)CFunctionLibrary;
+             while(*(unsigned int *)pp != 0xffffffff) {
+               j = (*(unsigned int *)(pp + 4)) + 8;  // calculate the total size of the CFunction
+               while(j--){
+              	  pp++;k++;
+               }
+             }
+           }
+
+
+              LibrarySizeK=(k+512)/1024;
+              LibraryPercent = (LibrarySizeK * 100)/128;
+              if(LibrarySizeK == 0) LibrarySizeK = 1;              // adjust if it is zero and we have any library
+              if(LibraryPercent == 0) LibraryPercent = 1;          // adjust if it is zero and we have any library
+
+     }
 
     // count the number of lines in the program
     p = ProgMemory;
@@ -535,11 +646,11 @@ void MIPS16 cmd_memory(void) {
         while(*p) p++;                                              // look for the zero marking the start of an element
     }
     ProgramSize = ((p - ProgMemory) + 512)/1024;
-    ProgramPercent = ((p - ProgMemory) * 100)/(PROG_FLASH_SIZE /*+ SAVED_VAR_RAM_SIZE*/);
+    ProgramPercent = ((p - ProgMemory) * 100)/(PROG_FLASH_SIZE /*+ SAVEDVARS_FLASH_SIZE*/);
     if(ProgramPercent > 100) ProgramPercent = 100;
     if(i && ProgramSize == 0) ProgramPercent = ProgramSize = 1;                                        // adjust if it is zero and we have some lines
 
-    MMPrintString("Flash:\r\n");
+    MMPrintString("Program Flash:\r\n");
     IntToStrPad(inpbuf, ProgramSize, ' ', 4, 10); strcat(inpbuf, "K (");
     IntToStrPad(inpbuf + strlen(inpbuf), ProgramPercent, ' ', 2, 10); strcat(inpbuf, "%) Program (");
     IntToStr(inpbuf + strlen(inpbuf), i, 10); strcat(inpbuf, " lines)\r\n");
@@ -558,8 +669,14 @@ void MIPS16 cmd_memory(void) {
         IntToStr(inpbuf, FontNbr, 10); strcat(inpbuf, " Embedded Fonts"); strcat(inpbuf, FontNbr == 1 ? "\r\n":"s\r\n");
         MMPrintString(inpbuf);
     }
-    LibrarySizeK = LibraryPercent = 0;
-       if(Option.ProgFlashSize != PROG_FLASH_SIZE) {
+
+    IntToStrPad(inpbuf, ((PROG_FLASH_SIZE /* + SAVEDVARS_FLAH_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK /*- SavedVarSizeK*/ - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+    IntToStrPad(inpbuf + strlen(inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent /*- SavedVarPercent*/ - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
+	MMPrintString(inpbuf);
+
+    /*
+      LibrarySizeK = LibraryPercent = 0;
+       if(Option.ProgFlashSize == PROG_FLASH_SIZE) {
            LibrarySizeK = PROG_FLASH_SIZE - Option.ProgFlashSize;
            LibraryPercent = (LibrarySizeK * 100)/PROG_FLASH_SIZE;
            LibrarySizeK /= 1024;
@@ -567,11 +684,39 @@ void MIPS16 cmd_memory(void) {
            IntToStrPad(inpbuf + strlen(inpbuf), LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) "); strcat(inpbuf, "Library\r\n");
            MMPrintString(inpbuf);
        }
+     */
+
+  	 //LibrarySizeK = LibraryPercent = 0;
+  	 if(Option.ProgFlashSize == PROG_FLASH_SIZE) {
+  		   MMPrintString("\r\nLibrary Flash:\r\n");
+  	       // LibrarySizeK = PROG_FLASH_SIZEMAX - Option.ProgFlashSize;  //fixme
+  		  //  LibrarySizeK=64;
+  	       // LibraryPercent = (LibrarySizeK * 100)/128; //fixme
+  	        //LibrarySizeK /= 1024;
+  	        IntToStrPad(inpbuf, LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+  	        //IntToStrPad(inpbuf, (128*1024  + 512)/1024  - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+  	        IntToStrPad(inpbuf + strlen(inpbuf), LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) "); strcat(inpbuf, "Library\r\n");
+
+  	        IntToStrPad(inpbuf + strlen(inpbuf), 128-LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+  	        IntToStrPad(inpbuf + strlen(inpbuf), 100 - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
+
+  	        MMPrintString(inpbuf);
+  	}
 
 
-    IntToStrPad(inpbuf, ((PROG_FLASH_SIZE /* + SAVED_VAR_RAM_SIZE*/) + 512)/1024 - ProgramSize - CFunctSizeK - FontSizeK /*- SavedVarSizeK*/ - LibrarySizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-    IntToStrPad(inpbuf + strlen(inpbuf), 100 - ProgramPercent - CFunctPercent - FontPercent /*- SavedVarPercent*/ - LibraryPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
+
+	MMPrintString("\r\nSaved Variables FLASH (4K):\r\n");
+	if(SavedVarCnt) {
+	       IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	       IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%)");
+	       IntToStrPad(inpbuf + strlen(inpbuf), SavedVarCnt, ' ', 2, 10); strcat(inpbuf, " Saved Variable"); strcat(inpbuf, SavedVarCnt == 1 ? " (":"s (");
+	       IntToStr(inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat(inpbuf, " bytes)\r\n");
+	       MMPrintString(inpbuf);
+	}
+	IntToStrPad(inpbuf, (( SAVEDVARS_FLASH_SIZE) + 512)/1024 - SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
+	IntToStrPad(inpbuf + strlen(inpbuf), 100 -  SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
 	MMPrintString(inpbuf);
+
 
     MMPrintString("\r\nRAM:\r\n");
     IntToStrPad(inpbuf, VarSize, ' ', 4, 10); strcat(inpbuf, "K (");
@@ -587,21 +732,9 @@ void MIPS16 cmd_memory(void) {
     IntToStrPad(inpbuf + strlen(inpbuf), 100 - VarPercent - GeneralPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
 	MMPrintString(inpbuf);
 
-	 MMPrintString("\r\nBackup SRAM (4K):\r\n");
-	 if(SavedVarCnt) {
-	        IntToStrPad(inpbuf, SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%)");
-	        IntToStrPad(inpbuf + strlen(inpbuf), SavedVarCnt, ' ', 2, 10); strcat(inpbuf, " Saved Variable"); strcat(inpbuf, SavedVarCnt == 1 ? " (":"s (");
-	        IntToStr(inpbuf + strlen(inpbuf), SavedVarSize, 10); strcat(inpbuf, " bytes)\r\n");
-	        MMPrintString(inpbuf);
-	 }
-	 IntToStrPad(inpbuf, (( SAVED_VAR_RAM_SIZE) + 512)/1024 - SavedVarSizeK, ' ', 4, 10); strcat(inpbuf, "K (");
-	 IntToStrPad(inpbuf + strlen(inpbuf), 100 -  SavedVarPercent, ' ', 2, 10); strcat(inpbuf, "%) Free\r\n");
-	 MMPrintString(inpbuf);
+
 
 }
-
-
 
 /***********************************************************************************************************************
  Public memory management functions

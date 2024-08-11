@@ -71,6 +71,7 @@ extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart2;
 extern UART_HandleTypeDef huart6;
+extern UART_HandleTypeDef huart3;
 /* USER CODE BEGIN EV */
 extern RTC_HandleTypeDef hrtc;
 extern void Timer1msHandler(void);
@@ -78,7 +79,7 @@ extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern ADC_HandleTypeDef hadc3;
 extern void Audio_Interrupt(void);
-extern volatile uint64_t Count5High;
+//extern volatile uint64_t Count5High;
 extern int64_t *d1point, *d2point;
 extern int d1max, d2max;
 extern volatile int d1pos, d2pos;
@@ -89,6 +90,7 @@ extern volatile int ADCchannelA;
 extern volatile int ADCchannelB;
 extern volatile int ADCchannelC;
 extern int ADCtriggervalue;
+extern int ADCtriggertimeout;
 extern int ADCtriggerchannel;
 extern int ADCnegativeslope;
 extern volatile int ADCcomplete;
@@ -344,6 +346,86 @@ void USART1_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles USART1 global interrupt.
+  */
+void USART3_IRQHandler(void)
+{
+  /* USER CODE BEGIN USART3_IRQn 0 */
+	if(SerialConDisabled){
+		uint32_t isrflags   = READ_REG(huart3.Instance->SR);
+		if ((isrflags & USART_SR_RXNE) != RESET){
+			char cc = huart3.Instance->DR;
+			if(GPSchannel==1){
+				*gpsbuf=cc;
+				gpsbuf++;
+				gpscount++;
+				if((char)cc==10 || gpscount==128){
+					if(gpscurrent){
+						*gpsbuf=0;
+						gpscurrent=0;
+						gpscount=0;
+						gpsbuf=gpsbuf1;
+						gpsready=gpsbuf2;
+					} else {
+						*gpsbuf=0;
+						gpscurrent=1;
+						gpscount=0;
+						gpsbuf=gpsbuf2;
+						gpsready=gpsbuf1;
+
+					}
+				}
+			} else {
+				com1Rx_buf[com1Rx_head]  = cc;   // store the byte in the ring buffer
+				com1Rx_head = (com1Rx_head + 1) % com1_buf_size;     // advance the head of the queue
+				if(com1Rx_head == com1Rx_tail) {                           // if the buffer has overflowed
+					com1Rx_tail = (com1Rx_tail + 1) % com1_buf_size; // throw away the oldest char
+				}
+			}
+		}
+		if ((isrflags & USART_SR_TC) != RESET){
+			if(com1Tx_head != com1Tx_tail) {
+				huart3.Instance->DR = com1Tx_buf[com1Tx_tail];
+				com1Tx_tail = (com1Tx_tail + 1) % TX_BUFFER_SIZE;       // advance the tail of the queue
+			} else {
+				huart3.Instance->CR1 &= ~USART_CR1_TCIE;
+			}
+		}
+	} else {
+	  	uint32_t isrflags   = READ_REG(huart3.Instance->SR);
+	  	if ((isrflags & USART_SR_RXNE) != RESET){
+	  		ConsoleRxBuf[ConsoleRxBufHead]  = huart3.Instance->DR;   // store the byte in the ring buffer
+	  		if(BreakKey && ConsoleRxBuf[ConsoleRxBufHead] == BreakKey) {// if the user wants to stop the progran
+	  			MMAbort = true;                                        // set the flag for the interpreter to see
+	  			ConsoleRxBufHead = ConsoleRxBufTail;                    // empty the buffer
+
+	  		} else if(ConsoleRxBuf[ConsoleRxBufHead] ==keyselect && KeyInterrupt!=NULL){
+	  					Keycomplete=1;
+	  		} else {
+	  			ConsoleRxBufHead = (ConsoleRxBufHead + 1) % CONSOLE_RX_BUF_SIZE;     // advance the head of the queue
+	  			if(ConsoleRxBufHead == ConsoleRxBufTail) {                           // if the buffer has overflowed
+	  				ConsoleRxBufTail = (ConsoleRxBufTail + 1) % CONSOLE_RX_BUF_SIZE; // throw away the oldest char
+	  			}
+	  		}
+	  	}
+	  	if ((isrflags & USART_SR_TC) != RESET){
+	  		if(ConsoleTxBufTail != ConsoleTxBufHead) {
+	  			huart3.Instance->DR = ConsoleTxBuf[ConsoleTxBufTail];
+	  			ConsoleTxBufTail = (ConsoleTxBufTail + 1) % CONSOLE_TX_BUF_SIZE; // advance the tail of the queue
+	  		} else {
+	  	        huart3.Instance->CR1 &= ~USART_CR1_TCIE;
+	  		}
+	  	}
+	}
+  	return;
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart3);
+  /* USER CODE BEGIN USART3_IRQn 1 */
+  /* USER CODE END USART3_IRQn 1 */
+}
+
+
+/**
   * @brief This function handles USART2 global interrupt.
   */
 void USART2_IRQHandler(void)
@@ -526,7 +608,7 @@ void TIM6_DAC_IRQHandler(void)
 void TIM7_IRQHandler(void)
 {
   /* USER CODE BEGIN TIM7_IRQn 0 */
-	static int lastread, ADCtriggerfound;
+	static int lastread, ADCtriggerfound,timeout;
 	int c, c1=0, c2=0, c3=0;
 //	a=10000; while (HAL_IS_BIT_CLR(hadc1.Instance->SR, EOC_SINGLE_CONV) && a--);
 	HAL_ADC_PollForConversion(&hadc1, 10);
@@ -561,6 +643,7 @@ void TIM7_IRQHandler(void)
 		if(ADCpos==0){
 			ADCtriggerfound=0;
 			lastread=c;
+			timeout=ADCtriggertimeout;
 		} else if(!ADCtriggerfound){
 			if(ADCnegativeslope){ //if looking for down slope
 				if(lastread>=ADCtriggervalue && c<ADCtriggervalue){
@@ -583,8 +666,10 @@ void TIM7_IRQHandler(void)
 					if(ADCchannelC)a3point[ADCpos]=c3;
 				}
 			}
-		}
-	}
+		}//trigger not found
+		timeout--;
+		if(timeout==0){ADCtriggerfound=1;}
+	} //ADCtriggerchannel
 	ADCpos++;
 	TIM7->SR=0;
 	return;
