@@ -3,7 +3,8 @@ Files to build the Armmite F4 MMBasic running on the STM32F407VGT6 100Pin,STM32F
 
 
 
-The STM32CubeIDE project is directory ArmmiteF407VGT. This should be placed in your STM32CubeIDE workspace. e.g. workspace/ArmmiteF407VGT and opened and compiled using STM32CubeIDE.  
+The STM32CubeIDE project is directory ArmmiteF407VGT. This should be placed in your STM32CubeIDE workspace. e.g. workspace/ArmmiteF407VGT and opened and compiled using STM32CubeIDE.
+Use GCC 10.3-2021.10 to ensure the CCRAM is not exceeded. The later version seem to use more CCRAM 
 A compiled binary version is under the the binaries directory.  
 A user manual for MMBasic on the STM32F407VGT is under the docs directory.  
 
