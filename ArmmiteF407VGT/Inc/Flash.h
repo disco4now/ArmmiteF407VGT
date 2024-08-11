@@ -62,9 +62,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		#define ADDR_FLASH_SECTOR_11    ((uint32_t)0x080E0000) /* Base @ of Sector 11, 128 Kbytes */
 		//#define FLASH_PROGRAM_ADDR       ADDR_FLASH_SECTOR_7   /* Start Basic Program flash area */
         #define FLASH_PROGRAM_ADDR       ADDR_FLASH_SECTOR_10   /* Start Basic Program flash area */
-//		#define FLASH_SAVED_OPTION_ADDR  ADDR_FLASH_SECTOR_1   /* Start of Saved Options flash area */
-//		#define FLASH_SAVED_VAR_ADDR     ADDR_FLASH_SECTOR_2   /* Start of Saved Variables flash area */
-//		#define SAVEDVARS_FLASH_SIZE 16384  // amount of flash reserved for saved variables
+        #define FLASH_LIBRARY_ADDR       ADDR_FLASH_SECTOR_11   /* Start Basic Library flash area */
+		#define FLASH_SAVED_OPTION_ADDR  ADDR_FLASH_SECTOR_1   /* Start of Saved Options flash area */
+		#define FLASH_SAVED_VAR_ADDR     ADDR_FLASH_SECTOR_2   /* Start of Saved Variables flash area */
+		//#define SAVEDVARS_FLASH_SIZE 16384  // amount of flash reserved for saved variables
+        #define SAVEDVARS_FLASH_SIZE 0x1000  // amount of flash reserved for saved variables  4K for now
 	#define SAVED_VAR_RAM_ADDR     ((uint32_t)0x40024000)   /* Start of Saved Variables flash area */
 //	#define FLASH_PROGRAM_ADDR       ADDR_FLASH_SECTOR_0_BANK2   /* Start Basic Program flash area */
 	#define SAVED_VAR_RAM_SIZE 0x1000  // amount of flash reserved for saved variables
@@ -81,6 +83,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //#define SAVED_OPTIONS_FLASH 2
 //#define SAVED_VARS_FLASH 2
 #define PROGRAM_FLASH 1
+#define SAVED_VARS_FLASH 2
+#define LIBRARY_FLASH 3
+#define SAVED_OPTIONS_FLASH 4
 
 struct option_s {
     char Autorun;
@@ -110,19 +115,21 @@ struct option_s {
     char fulltime;
     char Refresh;
     unsigned char FLASH_CS;
-    char dummy[2];
+    unsigned char NoScroll;         //NoScroll from picomites added @beta3
+    char dummy[1];        //27
     short MaxCtrls;       //28        2  // maximum number of controls allowed
-    short RTC_Calibrate;  //32 bytes  2
-    int DISPLAY_WIDTH;    //36        4
-    int DISPLAY_HEIGHT;   //40        4
-    uint32_t  PIN;        //44        4
-    uint32_t  Baudrate;   //48        4
-    MMFLOAT TOUCH_XSCALE; //          4
-    MMFLOAT TOUCH_YSCALE; //64 bytes  4
-    unsigned int ProgFlashSize;    // 4 used to store the size of the program flash (also start of the LIBRARY code)
-    int DefaultFC, DefaultBC;      // 4  the default colours
-    short  TOUCH_XZERO; //            2
-    short  TOUCH_YZERO; //80 bytes    2
+    short RTC_Calibrate;  //32  (30)bytes  2
+    int DISPLAY_WIDTH;    //36  (32)      4
+    int DISPLAY_HEIGHT;   //40  (36)     4
+    uint32_t  PIN;        //44  (40)      4
+    uint32_t  Baudrate;   //48  (44)      4
+    MMFLOAT TOUCH_XSCALE; //56  (48)     8
+    MMFLOAT TOUCH_YSCALE; //64  (56)     8
+    unsigned int ProgFlashSize;    // 64  4 used to store the size of the program flash (also start of the LIBRARY code)
+    int DefaultFC, DefaultBC;      // 68  4  the default colours
+    short  TOUCH_XZERO;            // 72  2
+    short  TOUCH_YZERO; //80 bytes // 74  2
+                        // leaves 76,77,78,79  i.e 4 bytes
 
 };
 
@@ -152,7 +159,7 @@ extern char * ProgMemory;
 extern void ClearSavedVars(void);
 void RoundDoubleFloat(MMFLOAT *ff);
 
-extern void AppendLibrary();
+//extern void AppendLibrary();
 extern void InitFlash_CS();
 void WBReadPage(int pageno,char *p);
 void WBReadSector(int pageno,char *p);

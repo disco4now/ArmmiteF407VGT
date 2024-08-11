@@ -64,6 +64,8 @@ extern void spi_write_data(unsigned char data);
 extern void set_cs(void);
 extern void ScrollLCDSPI(int lines);
 
+#define SPIREAD (Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9488 || Option.DISPLAY_TYPE == ST7789)
+
 #define ST7735_NOP              0x0
 #define ST7735_SWRESET          0x01
 #define ST7735_RDDID            0x04

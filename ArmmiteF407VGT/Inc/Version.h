@@ -44,15 +44,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //#define DEBUGMODE
 
-#define VERSION         "5.07.02b2"
-#define MES_SIGNON  "ARMmite VGT6 MMBasic Version " VERSION
-#define YEAR		"2011-2023"			    // and the year
-#define YEAR2          "2016-2023"
+#define VERSION         "5.07.02a0"
+#define MES_SIGNON  "ARMmite xGT6 MMBasic Version " VERSION
+#define YEAR		"2011-2024"			    // and the year
+#define YEAR2          "2016-2024"
 #define COPYRIGHT  "\r\nCopyright " YEAR " Geoff Graham\r\nCopyright " YEAR2 " Peter Mather\r\n"
 
-// Beta 2 SPIClose() added before AppendLibrary incase left open by flash write fail
-//        multiline comments
-//        fix for potential FILES error from peter.
+
 
 // These options are compiled conditionally
 

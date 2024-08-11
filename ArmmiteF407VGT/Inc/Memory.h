@@ -135,6 +135,12 @@ extern void *RAMBase;
 #define RAMEND          0x20020000
 #define MEMSIZE        512 * 1024//stm32f4
 
+//The hashed INTEGER and FLOAT variables are in the CCRAM
+//Look in the MAP file to see where vartbl is located and set these definitions
+//so the POKE is allowed to these addresses.
+#define VARTBLRAMBASE         	0x100039c0
+#define VARTBLRAMEND         	0x1000a9c0
+
 // other (minor) memory management parameters
 #define RAMPAGESIZE        256                                         // the allocation granuality
 #define PAGEBITS        2                                           // nbr of status bits per page of allocated memory, must be a power of 2

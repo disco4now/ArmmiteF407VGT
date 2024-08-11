@@ -64,6 +64,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     extern char IgnorePIN;
     extern char WatchdogSet;
     extern char oc1, oc2, oc3, oc4, oc5, oc6, oc7, oc8, oc9;
+    extern char canopen;
     extern volatile MMFLOAT VCC;
     extern int PromptFont, PromptFC, PromptBC;                          // the font and colours selected at the prompt;
     extern void TM_USART2_ReceiveHandler(uint8_t c);
@@ -120,7 +121,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     extern void PFltComma(MMFLOAT n);
     extern void PPinName(int n);
     extern void PPinNameComma(int n);
-    extern void setterminal(void);
+    extern void  setterminal(int height,int width);
     #ifdef __DEBUG
         void dump(char *p, int nbr);
     #endif
@@ -210,6 +211,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "SerialFileIO.h"
 #include "PWM.h"
 #include "SPI.h"
+#include "CAN.h"
 #include "Flash.h"
 #include "Xmodem.h"
 #include "Draw.h"

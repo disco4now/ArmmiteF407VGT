@@ -167,9 +167,20 @@ extern int multi;
 // finishes pointing to the token or zero char if not found in the line
 #define findtoken(x)    while(*x != (tkn) && *x)x++
 
+extern const char namestart[256];
+extern const char namein[256];
+extern const char nameend[256];
+extern const char upper[256];
+
+//#define mytoupper(a) upper[(unsigned int)a]
+//#define isnamestart(c)  (namestart[(uint8_t)c])                    // true if valid start of a variable name
+#define isnamechar(c)   (namein[(uint8_t)c])        // true if valid part of a variable name
+//#define isnameend(c)    (nameend[(uint8_t)c])        // true if valid at the end of a variable name
+
 #define isnamestart(c)  (IsAlpha(c) || c == '_')                    // true if valid start of a variable name
-#define isnamechar(c)   (IsAlnum(c) || c == '_' || c == '.')        // true if valid part of a variable name
+//#define isnamechar(c)   (IsAlnum(c) || c == '_' || c == '.')        // true if valid part of a variable name
 #define isnameend(c)    (IsAlnum(c) || c == '_' || c == '.' || c == '$' || c == '!' || c == '%')        // true if valid at the end of a variable name
+
 
 #define tokentype(i)    ((i >= C_BASETOKEN && i < TokenTableSize - 1 + C_BASETOKEN) ? (tokentbl[i - C_BASETOKEN].type) : 0)             // get the type of a token
 #define tokenfunction(i)((i >= C_BASETOKEN && i < TokenTableSize - 1 + C_BASETOKEN) ? (tokentbl[i - C_BASETOKEN].fptr) : (tokentbl[0].fptr))    // get the function pointer  of a token
