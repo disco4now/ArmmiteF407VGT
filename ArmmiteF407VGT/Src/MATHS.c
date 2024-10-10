@@ -2075,7 +2075,7 @@ void fun_math(void){
 			return;
 		}
 
-		tp = checkstring(ep, (char *)"SD");
+		tp = checkstring(ep, (char *)"SD");  //?Now Sample Standard Deviation
 		if(tp) {
 			int i,card1=1;
 			MMFLOAT *a2float=NULL, *a1float=NULL, mean=0, var=0, deviation;
@@ -2103,7 +2103,7 @@ void fun_math(void){
 				}
 			}
 			targ=T_NBR;
-			fret=sqrt(var/card1);
+			fret=sqrt(var/(card1-1));
 			return;
 		}
 

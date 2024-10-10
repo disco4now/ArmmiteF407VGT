@@ -1,9 +1,9 @@
 /*-*****************************************************************************
-MMBasic for STM32H743 [ZI2 and VIT6] (Armmite H7)
+MMBasic for STM32F407 [VGT6] (Armmite F4)
 
 CAN.c
 
-Handles the SPI command.
+Handles the CAN command.
 
 Copyright 2011-2024 Geoff Graham and  Peter Mather.
 Copyright 2024      Gerry Allardice.
@@ -46,19 +46,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /********** CAN implementation MMBasic on Armmite F407 *********************************
  *  One CAN interface is supported. The pins are allocated as below.
  *  Device                   CAN-H        CAN-L      Shared with
- *  144 Pin H743             B7(91)
- *  100 Pin H743
  *
- *  The CAN clock is 84Mhz derived i.e. 168/2
+ *
+ *  The CAN clock is 42Mhz derived i.e. 168/4
 
  *
  * Commands to interface the CAN
- * CAN OPEN canopen,speed
+ * CAN OPEN index,speed[,prescaler,seg1,seg2,sjw]
  * CAN CLOSE
  * CAN START
  * CAN STOP
  * CAN FILTER index,idtype,type,config,id1,id2
- * CAN SEND id,eid,dlc,msg,ret
+ * CAN SEND id,eid,rtr,dlc,msg,ret
  * CAN READ fifo,id,eid,rtr,dlc,msg,fmi,ret
 
  * **************************************************************
@@ -71,8 +70,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 4         n/a
  * 5         n/a
  * 6         n/a
- * 7         LOOPBACK                     CAN1
- * 8         LOOPBACK                     CAN1
+ * 7         LOOPBACK    PB8/95 PB9/96    CAN1     PWM2B,2C
+ * 8         LOOPBACK    PD0/81 PD1/82    CAN1     FSMC
  */
 
 
@@ -91,27 +90,9 @@ CAN_FilterTypeDef sFilterConfig;
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
 
-/*
 
-/3. Start the FDCAN module using HAL_FDCAN_Start function. At this level the node is active on the bus: it can
-send and receive messages.
-4. The following Tx control functions can only be called when the CAN module is started:
-– HAL_CAN_AddMessageToTxFifoQ
-– HAL_CAN_EnableTxBufferRequest
-– HAL_CAN_AbortTxRequest
-5. After having submitted a Tx request in Tx Fifo or Queue, it is possible to get Tx buffer location used to place
-the Tx request thanks to HAL_FDCAN_GetLatestTxFifoQRequestBuffer API. It is then possible to abort later
-on the corresponding Tx Request using HAL_FDCAN_AbortTxRequest API.
-6. When a message is received into the FDCAN message RAM, it can be retrieved using the
-HAL_FDCAN_GetRxMessage function.
-7. Calling the HAL_FDCAN_Stop function stops the FDCAN module by entering it to initialization mode and
-re-enabling access to configuration registers through the configuration functions listed here above.
-8. All other control functions can be called any time after initialization phase, no matter if the FDCAN module is
-started or stopped.
-*/
 
 /*
-
 
   CAN_ID_STD                  (0x00000000U)   < Standard Id
   CAN_ID_EXT                  (0x00000004U)   < Extended Id
@@ -140,7 +121,6 @@ started or stopped.
  CAN_INITSTATUS_FAILED       (0x00000000U) < CAN initialization failed
  CAN_INITSTATUS_SUCCESS      (0x00000001U) < CAN initialization OK
 
-
 */
 void cmd_can(void) {
 	int speed,i,cansave;
@@ -148,24 +128,20 @@ void cmd_can(void) {
 
     if(checkstring(cmdline, "CLOSE")) {
 
-        /* Stop the FDCAN module */
+        /* Stop the CAN module */
         HAL_CAN_Stop(&hcan);
     	HAL_CAN_DeInit(&hcan);
 
-      	if (canopen==1 || canopen==4) {
+      	if (canopen==1 || canopen==7) {
       		canopen=0;
     		if(ExtCurrentConfig[CAN_1A_RX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_1A_RX, EXT_NOT_CONFIG, 0);   // reset to not in use
     		if(ExtCurrentConfig[CAN_1A_TX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_1A_TX, EXT_NOT_CONFIG, 0);
     	}
-      	if (canopen==2 || canopen==5) {
+      	if (canopen==2 || canopen==8) {
       	    canopen=0;
       	   if(ExtCurrentConfig[CAN_2A_RX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_2A_RX, EXT_NOT_CONFIG, 0);   // reset to not in use
       	   if(ExtCurrentConfig[CAN_2A_TX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_2A_TX, EXT_NOT_CONFIG, 0);
       	}
-     // 	if (canopen==3) {
-      //	   if(ExtCurrentConfig[CAN_3A_RX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_3A_RX, EXT_NOT_CONFIG, 0);   // reset to not in use
-     // 	   if(ExtCurrentConfig[CAN_3A_TX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_3A_TX, EXT_NOT_CONFIG, 0);
-     // 	}
 
       	canopen=0;
         return;
@@ -173,14 +149,14 @@ void cmd_can(void) {
 
     if(checkstring(cmdline, "START")) {
 
-        /* Start the FDCAN module */
+        /* Start the CAN module */
         HAL_CAN_Start(&hcan);
         return;
     }
 
     if(checkstring(cmdline, "STOP")) {
 
-        /* Stop the FDCAN module */
+        /* Stop the CAN module */
         HAL_CAN_Stop(&hcan);
         return;
     }
@@ -217,7 +193,6 @@ void cmd_can(void) {
     	 ret = findvar(argv[10], V_FIND);
     	 if(!(vartbl[VarIndex].type & T_INT)) error("Invalid variable for ret");
 
-    	 /*##-4- Start the Transmission process #####################################*/
     	 if((HAL_CAN_GetTxMailboxesFreeLevel(&hcan))>0){
     		// PIntH(id);MMPrintString(" txBuffer FREE \r\n");
     	  if (eid){
@@ -236,6 +211,7 @@ void cmd_can(void) {
     	   TxHeader.TransmitGlobalTime = DISABLE;
 
     	   for (i=0;i<8;i++){TxData[7-i]=mybuff.cTxBuffer[i];}
+
     	   if(HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox) != HAL_OK){
     		   *ret=1;
     	   }else{
@@ -279,9 +255,6 @@ void cmd_can(void) {
     	 if(!(vartbl[VarIndex].type & T_INT)) error("Invalid variable for fmi");
     	 ret = findvar(argv[14], V_FIND);
     	 if(!(vartbl[VarIndex].type & T_INT)) error("Invalid variable for ret");
-
-
-    	 /*##-5- Start the Reception process ########################################*/
 
     	 if (fifo==0){
     	     *ret = HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0);
@@ -337,14 +310,12 @@ void cmd_can(void) {
     	         //PInt(*filterno);
      	    	 // for (i=0;i<8;i++){PIntH(RxData[i]);};PRet();
      	    	 for (i=0;i<8;i++){msg[7-i]=RxData[i];}
-
      	         for (i=*dlc;i<8;i++){msg[7-i]=0;}
      	        // PInt(*ret);MMPrintString("rec1 \r\n");
      	     }
     	 }
         return;
     }
-
 
 
     /* CAN FILTER index,idtype,type,config,id1,id2
@@ -396,20 +367,6 @@ void cmd_can(void) {
 
     	}
        	/* Configure filter */
-      	//if(idtype){
-       	//     sFilterConfig.IdType = FDCAN_EXTENDED_ID;
-      	//}else{
-        //	sFilterConfig.IdType = FDCAN_STANDARD_ID;
-       	//}
-       	//sFilterConfig.FilterIndex = index;
-       	//sFilterConfig.FilterType = type;
-       //	sFilterConfig.FilterConfig = config;
-       // sFilterConfig.FilterID1 = id1;
-       //	sFilterConfig.FilterID2 = id2;
-       //	HAL_FDCAN_ConfigFilter(&hfdcan, &sFilterConfig);
-
-
-          /*##-2- Configure the CAN Filter ###########################################*/
 
     	  sFilterConfig.FilterBank = index;   // 0 to 27
     	  if (type==0 || type==2 )sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;            //MASK
@@ -417,56 +374,28 @@ void cmd_can(void) {
     	  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT; //CAN_FILTERSCALE_16BIT
 
     	  if(idtype){  //extid
-    		  //sFilterConfig.FilterIdHigh = (id1>>13 ) & 0xFFFF;
-    		 // sFilterConfig.FilterIdLow = ((id1<<3) | 4 )  & 0xFFFF;  //Set extid
-    		 // sFilterConfig.FilterMaskIdHigh = id2>>13 & 0xFFFF ;
-    		 // sFilterConfig.FilterMaskIdLow = ((id2<<3) | 4 ) & 0xFFFF;  //Set extid
 
     	      sFilterConfig.FilterIdHigh = (id1>>13 ) & 0xFFFF;
     	      sFilterConfig.FilterIdLow = ((id1<<3) | 4 )  & 0xFFFF;  //Set extid
     	      sFilterConfig.FilterMaskIdHigh = id2>>13 & 0xFFFF ;
     	      if (type==2 ){
-
     	    	 sFilterConfig.FilterMaskIdLow = ((id2<<3) ) & 0xFFFF;  //DONT Set extid in mask
-
     	      }else{
-
     	    	 sFilterConfig.FilterMaskIdLow = ((id2<<3) | 4 ) & 0xFFFF;  //Set extid in mask
     	      }
 
-
-
-    	    //  PIntHC(sFilterConfig.FilterIdHigh);
-    	    //  PIntHC(sFilterConfig.FilterIdLow);
-    	    //  PIntHC(sFilterConfig.FilterMaskIdHigh);
-    	    //  PIntHC(sFilterConfig.FilterMaskIdLow);PRet();
     	 }else{
 
     		 sFilterConfig.FilterIdHigh = (id1<<5 ) & 0xFFE0;
     		 sFilterConfig.FilterIdLow = 0;//((id1<<3) & 0 )  & 0xFFFF;    //  DONT Set extid
     		// sFilterConfig.FilterIdLow = 4;//((id1<<3) & 0 )  & 0xFFFF;  //Set extid
     		 sFilterConfig.FilterMaskIdHigh = (id2<<5) & 0xFFE0 ;
-
    	         if (type==2 || type==1){
-
    	        	sFilterConfig.FilterMaskIdLow = 0 ;//((id2<<3) | 0 ) & 0xFFFF;  //Dont Set extid mask if its an ID or EIDM not applied
    	         }else{
-
    	        	sFilterConfig.FilterMaskIdLow = 4 ;//((id2<<3) | 0 ) & 0xFFFF;  //Set extid  mask
-
    	         }
 
-    		    	   //sFilterConfig.FilterIdHigh = ((id1<<5) & 0xFFE0) | 8;     //  ID High
-    		    	  // sFilterConfig.FilterIdLow = (id2<<5) & 0xFFE0;     //(id1<<5) & 0x0000;      // ID Low
-    		    	  // sFilterConfig.FilterMaskIdHigh = ((id1<<5) & 0xFFE0) | 8;   // Mask Hi
-    		    	   //sFilterConfig.FilterMaskIdLow = (id2<<5) & 0xFFE0;     //(id1<<5) & 0x0000;      // ID Low
-    		    	   //sFilterConfig.FilterMaskIdHigh = 0x0;    //MASK
-    		    	   //sFilterConfig.FilterMaskIdLow = 0x4;     //MASK
-
-    		 // PIntHC(sFilterConfig.FilterIdHigh);
-    		 // PIntHC(sFilterConfig.FilterIdLow);
-    		//  PIntHC(sFilterConfig.FilterMaskIdHigh);
-    		//  PIntHC(sFilterConfig.FilterMaskIdLow);PRet();
     	 }
     	 if(config==0){
     		 sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;  //CAN_FILTER_FIFO0
@@ -487,124 +416,31 @@ void cmd_can(void) {
          return;
      }
 
-
-    	  // sFilterConfig.FilterBank = index;   // 0 to 13
-    	  // sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  //CAN_FILTERMODE_IDLIST
-    	  // sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT; //CAN_FILTERSCALE_16BIT
-
-    	  // sFilterConfig.FilterIdHigh = (id1<<5 ) & 0xFFE0;
-    	 //  sFilterConfig.FilterIdLow = 0;//((id1<<3) & 0 )  & 0xFFFF;  //Set extid
-    	  // sFilterConfig.FilterMaskIdHigh = (id2<<5) & 0xFFE0 ;
-    	  // sFilterConfig.FilterMaskIdLow = 4 ;//((id2<<3) | 0 ) & 0xFFFF;  //Set extid
-
-    	   //sFilterConfig.FilterIdHigh = ((id1<<5) & 0xFFE0) | 8;     //  ID High
-    	  // sFilterConfig.FilterIdLow = (id2<<5) & 0xFFE0;     //(id1<<5) & 0x0000;      // ID Low
-    	  // sFilterConfig.FilterMaskIdHigh = ((id1<<5) & 0xFFE0) | 8;   // Mask Hi
-    	   //sFilterConfig.FilterMaskIdLow = (id2<<5) & 0xFFE0;     //(id1<<5) & 0x0000;      // ID Low
-    	   //sFilterConfig.FilterMaskIdHigh = 0x0;    //MASK
-    	   //sFilterConfig.FilterMaskIdLow = 0x4;     //MASK
-
-    	 //  PIntHC(sFilterConfig.FilterIdHigh);
-    	 //  PIntHC(sFilterConfig.FilterIdLow);
-    	  // PIntHC(sFilterConfig.FilterMaskIdHigh);
-    	  // PIntHC(sFilterConfig.FilterMaskIdLow);PRet();
-
-    	   //PIntHC(sFilterConfig.FilterIdLow);  //id
-    	   //PIntHC(sFilterConfig.FilterIdHigh); //mask
-    	   //PIntHC(sFilterConfig.FilterMaskIdLow);  //id
-    	   //PIntHC(sFilterConfig.FilterMaskIdHigh);PRet();  //mask
-
-
-    	  // sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;  //CAN_FILTER_FIFO1
-    	  // sFilterConfig.FilterActivation = ENABLE;
-    	  // sFilterConfig.SlaveStartFilterBank = 14;
-    	  // if(HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)error ("Filter configuration failed");
-
-
-       // sFilterConfig.FilterBank = 0;   // 0 to 13
-       // sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  //CAN_FILTERMODE_IDLIST
-       // sFilterConfig.FilterScale = CAN_FILTERSCALE_16BIT; //CAN_FILTERSCALE_16BIT
-       // sFilterConfig.FilterIdHigh = 0x0000;
-       // sFilterConfig.FilterIdLow = 0x0000;
-       // sFilterConfig.FilterMaskIdHigh = 0x0111;    //MASK
-       // sFilterConfig.FilterMaskIdLow = 0x0555;     //ID
-       // sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO1;  //CAN_FILTER_FIFO1
-       // sFilterConfig.FilterActivation = ENABLE;
-       // sFilterConfig.SlaveStartFilterBank = 14;
-
-       // if(HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)error ("Filter configuration failed");
-
-       // sFilterConfig.FilterBank = 1;   // 0 to 13
-       // sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;  //CAN_FILTERMODE_IDLIST
-       // sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT; //CAN_FILTERSCALE_16BIT
-       // sFilterConfig.FilterIdHigh = 0x0333;
-       // sFilterConfig.FilterIdLow = 0x3333;
-       // sFilterConfig.FilterMaskIdHigh = 0x1FFF;
-       // sFilterConfig.FilterMaskIdLow = 0xFFFF;
-       // sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;  //CAN_FILTER_FIFO1
-       // sFilterConfig.FilterActivation = ENABLE;
-       // sFilterConfig.SlaveStartFilterBank = 14;
-
-       // if(HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)error ("Filter configuration failed");
-
-    	//MMPrintString("added ... \r\n");
-    	//MMPrintString("IdType:");PIntH(sFilterConfig.IdType);PRet();
-    	//MMPrintString("FilterIndex:");PIntH(sFilterConfig.FilterIndex);PRet();
-    	//MMPrintString("FilterType:");PIntH(sFilterConfig.FilterType);PRet();
-    	//MMPrintString("FilterConfig:");PIntH(sFilterConfig.FilterConfig);PRet();
-    	//MMPrintString("FilterID1:");PIntH(sFilterConfig.FilterID1);PRet();
-    	//MMPrintString("FilterID2:");PIntH(sFilterConfig.FilterID2);PRet();
-
-    	//HAL_FDCAN_ConfigGlobalFilter(&hfdcan, FDCAN_ACCEPT_IN_RX_FIFO1, FDCAN_ACCEPT_IN_RX_FIFO1, FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE);
-    	//return;
-
-
-   // }
-
-    /*************************************************************************
-     * CAN GLOBAL id,eid,idr,eidr
-
-       Values for id and eid                values for idr and eidr
-       ---------------------                -----------------------
-       0=FDCAN_ACCEPT_IN_RX_FIFO0           0=FDCAN_FILTER_REMOTE
-       1=FDCAN_ACCEPT_IN_RX_FIFO1		    1=FDCAN_REJECT_REMOTE
-       2=FDCAN_REJECT
-
-    *************************************************************************
-    if((p = checkstring(cmdline, "GLOBAL")) != NULL) {
-
-       	uint32_t id,eid,idr,eidr;
-       	getargs(&p, 7, ",");
-       	if(!(argc == 7 )) error("Incorrect number of arguments");
-       	id=getint(argv[0],0,2);
-       	eid=getint(argv[2],0,2);
-       	idr=getint(argv[4],0,1);
-       	eidr=getint(argv[6],0,1);
-  //     	HAL_FDCAN_ConfigGlobalFilter(&hfdcan, id, eid, idr, eidr);
-        return;
-    }
-    */
-
-
-/*
-	 0=FDCAN_FRAME_CLASSIC
-	 1=FDCAN_FRAME_FD_BRS
-*/
-
+/*  CAN OPEN index,speed[,prescale,seg1,seg2,sjw]
+ *
+ */
     if((p = checkstring(cmdline, "OPEN")) != NULL) {
+       int prescale,seg1,seg2,sjw;
+       if (canopen) error("Already open");
 
-      if (canopen) error("Already open");
-
-    	getargs(&p, 5, ",");
+    	getargs(&p, 11, ",");
+    	//getargs(&p, 5, ",");
         if(argc < 3) error("Incorrect argument count");
-        canopen=getint(argv[0],1,9);
-        //canopen=getinteger(argv[0]);
-        //speed=getint(argv[2],125000,1000000);
+        canopen=getint(argv[0],1,8);
+        if (!(canopen==1 || canopen==2 || canopen==7 || canopen==8))error("Valid index is 1,2,7 or 8");
+        cansave=canopen;canopen=0;
         speed = getinteger(argv[2]);
-        if (!(speed==125000||speed==250000||speed==500000||speed==1000000))error("Valid speeds are 125000,250000,5000000,1000000");
+        if (!(speed==0||speed==125000||speed==250000||speed==500000||speed==1000000))error("Valid speeds are 0,125000,250000,5000000,1000000");
+        if (speed==0 && argc != 11)error(" prescaler,seg1,seg2 and sjw required if speed is 0");
+        if (speed==0){
+        	prescale = getinteger(argv[4]);
+        	seg1 = getint(argv[6],1,16);
+        	seg2 = getint(argv[8],1,8);
+        	sjw = getint(argv[10],1,4);
+        }
+        canopen=cansave;
 
-
-        if (canopen==1 || canopen==1) {
+        if (canopen==1 || canopen==7) {
         	cansave=canopen;canopen=0;
         	CheckPin(CAN_1A_RX, CP_CHECKALL);  //Shared with PWM2A
             CheckPin(CAN_1A_TX, CP_CHECKALL);  //Shared with PWM2B
@@ -612,7 +448,7 @@ void cmd_can(void) {
         	ExtCurrentConfig[CAN_1A_TX] = EXT_COM_RESERVED;
         	canopen=cansave;
         }
-        if (canopen==2 || canopen==2) {
+        if (canopen==2 || canopen==8) {
            cansave=canopen;canopen=0;
            CheckPin(CAN_2A_RX, CP_CHECKALL);  //SHARED with Parallel LCD
            CheckPin(CAN_2A_TX, CP_CHECKALL);  //SHARED with Parallel LCD
@@ -620,23 +456,11 @@ void cmd_can(void) {
            ExtCurrentConfig[CAN_2A_TX] = EXT_COM_RESERVED;
            canopen=cansave;
         }
-       // if (canopen==3) {
-       //    usecan2=1;
-       //    ExtCfg(CAN_3A_RX, EXT_COM_RESERVED, 0);
-       //    ExtCfg(CAN_3A_TX, EXT_COM_RESERVED, 0);
-       // }
-
-
-
 
         /* Initializes the CAN peripheral */
         hcan.Instance = CAN1;
-        //if(canopen==4 || canopen==5){
-       //       hcan.Init.Mode = CAN_MODE_SILENT; //CAN_MODE_SILENT_LOOPBACK;  //CAN_MODE_LOOPBACK;
-        //     MMPrintString("Open Silent_MODE \r\n");
-        if(canopen==9 || canopen==9){
-        	 hcan.Init.Mode = CAN_MODE_LOOPBACK; //CAN_MODE_SILENT_LOOPBACK;  //CAN_MODE_LOOPBACK;
-             //MMPrintString("Open Loopback \r\n");
+        if(canopen==7 || canopen==8){
+        	 hcan.Init.Mode = CAN_MODE_SILENT_LOOPBACK; //CAN_MODE_SILENT_LOOPBACK;  //CAN_MODE_LOOPBACK;
         }else{
           hcan.Init.Mode = CAN_MODE_NORMAL;
         }
@@ -648,19 +472,19 @@ void cmd_can(void) {
          hcan.Init.ReceiveFifoLocked = DISABLE;
          hcan.Init.TransmitFifoPriority = DISABLE;
 
-       //hfdcan.Init.NominalPrescaler = 0x1; /* tq = NominalPrescaler x (1/fdcan_ker_ck)
+
 /*   The Armmite F4 sets clock rate at 42MHz.  i.e.168/4  so use 42Mhz in table below.
  *   see http://www.bittiming.can-wiki.info/ for calculating values for various speeds and
  *   sample points.
  */
 
 /**** Clock parameters at 71.4% sample point ***************************************
-       Speed       Pre    Max    Seg1   Seg2  JSW  Sample
-		KHz        Scale  tq                       Point
-        125	 0.0000	16    21  	 14		6     1    71.4
-        250	 0.0000	 8    21	 14	    6     1    71.4
-		500	 0.0000	 4 	  21	 14	    6     1    71.4
-		1000 0.0000	 2	  21     14	    6	  1    71.4
+       Speed    Pre    Max    Seg1   Seg2  JSW  Sample
+		KHz     Scale  tq                       Point
+        125	 	16    21  	 14		6     1    71.4
+        250	 	 8    21	 14	    6     1    71.4
+		500	 	 4 	  21	 14	    6     1    71.4
+		1000 	 2	  21     14	    6	  1    71.4
 ***********************************************************************************/
 /**** Clock parameters at 85.75 to 87.5% sample point ******************************
       Speed    Pre    Max    Seg1   Seg2  JSW  Sample
@@ -671,29 +495,33 @@ void cmd_can(void) {
       	1000  	 3	  14     11	    2	  1    85.7
  ***********************************************************************************/
       if (speed==125000){
-	    hcan.Init.Prescaler = 16;
-	    hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-	    hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
-	    hcan.Init.TimeSeg2 = CAN_BS2_6TQ;
+	   //samples set at at 87.5%
+    	 hcan.Init.Prescaler = 21;
+	     hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+	     hcan.Init.TimeSeg1 = CAN_BS1_13TQ;
+	     hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
        // MMPrintString("Speed 125000 \r\n");
       }else if(speed==250000){
-        hcan.Init.Prescaler = 8;
-    	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-        hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
-        hcan.Init.TimeSeg2 = CAN_BS2_6TQ;
+         hcan.Init.Prescaler = 12;
+    	 hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+         hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
+         hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
       }else if(speed==500000){
-        hcan.Init.Prescaler = 4;
-       	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-        hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
-        hcan.Init.TimeSeg2 = CAN_BS2_6TQ;
+         hcan.Init.Prescaler = 6;
+       	 hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+         hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
+         hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
       }else if(speed==1000000){
-        hcan.Init.Prescaler = 2;
-       	hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
-        hcan.Init.TimeSeg1 = CAN_BS1_14TQ;
-        hcan.Init.TimeSeg2 = CAN_BS2_6TQ;
-
+         hcan.Init.Prescaler = 3;
+       	 hcan.Init.SyncJumpWidth = CAN_SJW_1TQ;
+         hcan.Init.TimeSeg1 = CAN_BS1_11TQ;
+         hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
+      }else if(speed==0){
+         hcan.Init.Prescaler = prescale;
+         hcan.Init.TimeSeg1 = (seg1-1)<<16;
+         hcan.Init.TimeSeg2 = (seg2-1)<<20;
+         hcan.Init.SyncJumpWidth = (sjw-1)<<24;
       }
-
 
        HAL_CAN_DeInit(&hcan);
        if (HAL_CAN_Init(&hcan) != HAL_OK)error("Failed to initial CAN");
@@ -705,123 +533,7 @@ void cmd_can(void) {
          sFilterConfig.FilterActivation = DISABLE;
          if(HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)error ("Filter configuration failed");
        }
-
-       /*** Initially set the global filter to accept all messages to RX_FIFO1 **/
-     //  HAL_FDCAN_ConfigGlobalFilter(&hfdcan, FDCAN_ACCEPT_IN_RX_FIFO1, FDCAN_ACCEPT_IN_RX_FIFO1, FDCAN_REJECT_REMOTE, FDCAN_REJECT_REMOTE);
        return;
      }
      error("Invalid syntax");
  }
-
-
-
-
-
-
-#ifdef LOOPBACK
-/**
-  * @brief  Configures the CAN, transmit and receive by polling
-  * @param  None
-  * @retval PASSED if the reception is well done, FAILED in other case
-  */
-HAL_StatusTypeDef CAN_Polling(void)
-{
-  CAN_FilterTypeDef  sFilterConfig;
-
-  /*##-1- Configure the CAN peripheral #######################################*/
-  CanHandle.Instance = CANx;
-
-  CanHandle.Init.TimeTriggeredMode = DISABLE;
-  CanHandle.Init.AutoBusOff = DISABLE;
-  CanHandle.Init.AutoWakeUp = DISABLE;
-  CanHandle.Init.AutoRetransmission = ENABLE;
-  CanHandle.Init.ReceiveFifoLocked = DISABLE;
-  CanHandle.Init.TransmitFifoPriority = DISABLE;
-  CanHandle.Init.Mode = CAN_MODE_LOOPBACK;
-  CanHandle.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  CanHandle.Init.TimeSeg1 = CAN_BS1_4TQ;
-  CanHandle.Init.TimeSeg2 = CAN_BS2_2TQ;
-  CanHandle.Init.Prescaler = 6;
-
-  if(HAL_CAN_Init(&CanHandle) != HAL_OK)
-  {
-    /* Initialization Error */
-    Error_Handler();
-  }
-
-  /*##-2- Configure the CAN Filter ###########################################*/
-  sFilterConfig.FilterBank = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow = 0x0000;
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow = 0x0000;
-  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-  sFilterConfig.FilterActivation = ENABLE;
-  sFilterConfig.SlaveStartFilterBank = 14;
-
-  if(HAL_CAN_ConfigFilter(&CanHandle, &sFilterConfig) != HAL_OK)
-  {
-    /* Filter configuration Error */
-    Error_Handler();
-  }
-
-  /*##-3- Start the CAN peripheral ###########################################*/
-  if (HAL_CAN_Start(&CanHandle) != HAL_OK)
-  {
-    /* Start Error */
-    Error_Handler();
-  }
-
-  /*##-4- Start the Transmission process #####################################*/
-  TxHeader.StdId = 0x11;
-  TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.IDE = CAN_ID_STD;
-  TxHeader.DLC = 2;
-  TxHeader.TransmitGlobalTime = DISABLE;
-  TxData[0] = 0xCA;
-  TxData[1] = 0xFE;
-
-  /* Request transmission */
-  if(HAL_CAN_AddTxMessage(&CanHandle, &TxHeader, TxData, &TxMailbox) != HAL_OK)
-  {
-    /* Transmission request Error */
-    Error_Handler();
-  }
-
-  /* Wait transmission complete */
-  while(HAL_CAN_GetTxMailboxesFreeLevel(&CanHandle) != 3) {}
-
-  /*##-5- Start the Reception process ########################################*/
-  if(HAL_CAN_GetRxFifoFillLevel(&CanHandle, CAN_RX_FIFO0) != 1)
-  {
-    /* Reception Missing */
-    Error_Handler();
-  }
-
-  if(HAL_CAN_GetRxMessage(&CanHandle, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK)
-  {
-    /* Reception Error */
-    Error_Handler();
-  }
-
-  if((RxHeader.StdId != 0x11)                     ||
-     (RxHeader.RTR != CAN_RTR_DATA)               ||
-     (RxHeader.IDE != CAN_ID_STD)                 ||
-     (RxHeader.DLC != 2)                          ||
-     ((RxData[0]<<8 | RxData[1]) != 0xCAFE))
-  {
-    /* Rx message Error */
-    return HAL_ERROR;
-  }
-
-  return HAL_OK; /* Test Passed */
-}
-
-#endif
-
-#ifdef POLLING
-
-
-#endif

@@ -606,7 +606,10 @@ void MIPS16 InitDisplaySPI(int fullinit) {
     //if(Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9486 || Option.DISPLAY_TYPE == ILI9488 )ReadBuffer = ReadBufferSPI;
     if(LCDAttrib & 0x1){
     	ReadBuffer = ReadBufferSPI;
-    	ScrollLCD = ScrollLCDSPI;
+    	//if((Option.DISPLAY_TYPE == ILI9341 || Option.DISPLAY_TYPE == ILI9488 ) && !Option.SerialConDisabled && Option.DISPLAY_CONSOLE){
+    	// Option.NoScroll=1;
+    	//  ScrollLCD = ScrollLCDSPI;
+    	//}
     }
     //save the options
     SaveOptions();

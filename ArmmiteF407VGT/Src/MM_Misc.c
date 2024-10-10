@@ -1333,6 +1333,57 @@ void cmd_option(void) {
 }
 
 
+#define STM32_UUID        ((uint8_t*)0x1FFF7A10)
+// board SN 48 bit
+static inline uint64_t mix(uint64_t h)
+{
+    h ^= h >> 23;
+    h *= 0x2127599bf4325c37ULL;
+    h ^= h >> 47;
+    //
+    return h;
+}
+
+uint64_t fastHash64(const void * buf, size_t len, uint64_t seed)
+{
+    const uint64_t m = 0x880355f21e6d1965ULL;
+    const uint64_t * pos = (const uint64_t*)buf;
+    const uint64_t * end = pos + (len / 8);
+    const unsigned char * pos2;
+    uint64_t h = seed ^ (len * m);
+    uint64_t v;
+
+    while(pos != end)
+    {
+        v  = *pos++;
+        h ^= mix(v);
+        h *= m;
+    }
+
+    pos2 = (const unsigned char*)pos;
+    v = 0;
+
+    switch(len & 7)
+    {
+        case 7: v ^= (uint64_t)pos2[6] << 48;
+        case 6: v ^= (uint64_t)pos2[5] << 40;
+        case 5: v ^= (uint64_t)pos2[4] << 32;
+        case 4: v ^= (uint64_t)pos2[3] << 24;
+        case 3: v ^= (uint64_t)pos2[2] << 16;
+        case 2: v ^= (uint64_t)pos2[1] << 8;
+        case 1: v ^= (uint64_t)pos2[0];
+                h ^= mix(v);
+                h *= m;
+    }
+
+    return mix(h);
+}
+
+int64_t getBoardSerial(void)
+{
+  uint64_t hash = fastHash64(STM32_UUID, 12, 1234554321) & 0xFFFFFFFFFFFF;
+  return hash;
+}
 
 // function (which looks like a pre defined variable) to return the type of platform
 void fun_device(void){
@@ -1547,7 +1598,23 @@ void fun_info(void){
                 iret=FreeSpaceOnHeap();
                 targ=T_INT;
                 return;
-     } else if(checkstring(ep, "VPOS")){
+     } else if(checkstring(ep, "ID")){  //Unique ID 12 bytes
+    	       int i;
+    	       char id_out[25];
+                // Generate hex one nibble at a time
+                for (i = 0; i<24; i++) {
+                    int nibble = (TM_ID_GetUnique8(i/2) >> (4 - 4*(i%2)) ) & 0xf;
+                    id_out[i] = (char)(nibble < 10 ? nibble + '0' : nibble + 'A' - 10);
+                }
+                id_out[i] = 0;
+                strcpy(sret,id_out);
+
+     } else if(checkstring(ep, "ID48")){  //Unique ID  48 bits
+    	        iret=(int64_t)getBoardSerial();
+		        targ=T_INT;
+		        return;
+
+     }else if(checkstring(ep, "VPOS")){
                 iret = CurrentY;
                 targ=T_INT;
                 return;

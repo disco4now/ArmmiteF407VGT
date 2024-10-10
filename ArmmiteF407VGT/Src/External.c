@@ -1885,18 +1885,19 @@ void cmd_bitbang(void){
         if(size < num)error("Array too small");
         data=GetTempMemory(num * sizeof(unsigned short));
         if(a1float!=NULL){
-            for(i=0; i< num;i++)data[i]= FloatToUint16(*a1float++ *21);
-            if (data[0]>20) data[0]-=5;
-            MX_TIM14_Init(3);  //21MHz
-
+        	if(*a1float <0 || *a1float>3120)error("Allowed number range (0-3120");
+            for(i=0; i< num;i++)data[i]= FloatToUint16(*a1float++);
         } else {
-            for(i=0; i< num;i++){
-            	if(*a1int <0 || *a1int>65535)error("Number range");
-                data[i]= *a1int++ ;
-                MX_TIM14_Init(83);   //1 MHz
-            }
+        	if(*a1int <0 || *a1int>3120)error("Allowed number range (0-3120)");
+            for(i=0; i< num;i++){data[i]= *a1int++; }
         }
-
+        for(i=0; i< num;i++){
+             data[i]*=21;
+        }
+        // if (data[0]>21) data[0]-=5;
+         data[0]-=2;
+         //MX_TIM14_Init(83); //1MHz i.e. 84/84
+         MX_TIM14_Init(3);  //21MHz  i.e. 84/4
         __disable_irq();
        	HAL_TIM_Base_Start(&htim14);
     	bitstream(pin,data,num);

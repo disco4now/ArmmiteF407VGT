@@ -281,17 +281,17 @@ void cmd_guiMX170(void) {
     error("Unknown command");
 }
 /* This used by the BLIT commands. It uses temporary memory*/
-char *blitmemoryCmd;
+char *blitmemory;
 #define blitmemorysize 2560+RAMPAGESIZE
 void DoBlit(int x1, int y1, int x2, int y2, int w, int h){
     int max_x;
     char *buff;
     int multiplier=3;
-    blitmemoryCmd=GetTempMemory(blitmemorysize);
+    blitmemory=GetTempMemory(blitmemorysize);
     if((w*h*multiplier)>blitmemorysize-RAMPAGESIZE){ //need to use alternative copy
         if(x1 >=x2) {
             max_x=(blitmemorysize-RAMPAGESIZE)/h/multiplier;
-            buff=blitmemoryCmd;
+            buff=blitmemory;
             while(w > max_x){
                 ReadBuffer(x1,y1,x1+max_x-1,y1+h-1,buff);
                 DrawBuffer(x2,y2,x2+max_x-1,y2+h-1,buff);
@@ -306,7 +306,7 @@ void DoBlit(int x1, int y1, int x2, int y2, int w, int h){
         } else {
             int start_x1,start_x2;
             max_x=(blitmemorysize-RAMPAGESIZE)/h/multiplier;
-            buff=blitmemoryCmd;
+            buff=blitmemory;
             start_x1=x1+w-max_x;
             start_x2=x2+w-max_x;
             while(w > max_x){
@@ -322,7 +322,7 @@ void DoBlit(int x1, int y1, int x2, int y2, int w, int h){
             return;
         }
     } else {
-        buff=blitmemoryCmd;
+        buff=blitmemory;
         ReadBuffer(x1,y1,x1+w-1,y1+h-1,buff);
         DrawBuffer(x2,y2,x2+w-1,y2+h-1,buff);
         FreeMemory(buff);

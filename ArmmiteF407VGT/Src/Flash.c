@@ -1061,7 +1061,13 @@ void MIPS16 cmd_library(void) {
         ListProgram(ProgMemory + Option.ProgFlashSize, false);
         return;
      }
-     //restoire the library if it is not empty
+     /**********************************************************************************************
+           LIBRARY RESTORE will check for the existence of Library code in the Library FLASH.
+           Is existence is normally indicated by Option.ProgFlashSize which is set when the library
+           code is saved. If library code is found then Option.ProgFlashSize is set to the library's location.
+           This can be used to restore the library after an OPTION RESET or if the OPTIONs are reset after a
+           firmware update.
+     ***********************************************************************************************/
      if(checkstring(cmdline, "RESTORE")) {  //See if library code exists and set Option.ProgFlashSize
            p=ProgMemory+PROG_FLASH_SIZE;
            if(*(unsigned int *)p == 0xffffffff) {  //library empty

@@ -160,11 +160,19 @@ char LCDAttrib;
 volatile int MMAbort = false;
 int use_uart;
 
+//char lastcmd[STRINGSIZE*4];            // used to store the last command in case it is needed by the EDIT command (leaves about 512bytes in CCRAM after this)
+//void InsertLastcmd( char *s);
+#define CMD_BUFFER_SIZE STRINGSIZE*4
+
+
 unsigned int __attribute__((section(".my_section"))) _excep_dummy; // for some reason persistent does not work on the first variable
 unsigned int __attribute__((section(".my_section"))) _excep_code;  //  __attribute__ ((persistent));  // if there was an exception this is the exception code
 unsigned int __attribute__((section(".my_section"))) _excep_addr;  //  __attribute__ ((persistent));  // and this is the address
 unsigned int __attribute__((section(".my_section"))) _excep_cause;  //  __attribute__ ((persistent));  // and this is the address
-//char __attribute__((section(".backup"))) lastcmd[CMD_BUFFER_SIZE];  //  RTC Battery Backed RAM of 4K
+/********  Enable one of these two lines to determine where to place the CMD_BUFFER  *******/
+char __attribute__((section(".backup"))) lastcmd[CMD_BUFFER_SIZE];  //  RTC Battery Backed RAM of 4K  Used for CMD_BUFFER
+//char lastcmd[CMD_BUFFER_SIZE];                                    // CMD_BUFFER in CCRAM
+/******************************************************************************************/
 char *InterruptReturn = NULL;
 int BasicRunning = false;
 char ConsoleRxBuf[CONSOLE_RX_BUF_SIZE];
@@ -258,10 +266,7 @@ void executelocal(char *p);
 
 /* USER CODE END 0 */
 
-//char lastcmd[STRINGSIZE*4];            // used to store the last command in case it is needed by the EDIT command (leaves about 512bytes in CCRAM after this)
-//void InsertLastcmd( char *s);
-#define CMD_BUFFER_SIZE STRINGSIZE*4
-char lastcmd[CMD_BUFFER_SIZE];            // used to store the last command in case it is needed by the EDIT command
+
 void InsertLastcmd( char *s);
 
 
@@ -507,19 +512,19 @@ int main(void)
 
 
   /* Test for Feather 64Pin PA9 and PA10 are high (3.3v)  */
+#ifdef FEATHER
     //if(HAS_64PINS){
 	    __HAL_RCC_GPIOA_CLK_ENABLE();
 	    GPIO_InitTypeDef GPIO_InitStruct;
   	    GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
   	  	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   	  	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  	  	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  	   	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
   	    HAL_Delay(200);
-  	  	if(HAL_GPIO_ReadPin(GPIOA,  GPIO_PIN_9) && HAL_GPIO_ReadPin(GPIOA,  GPIO_PIN_10)){
-          // feather=1;
-           Feather = true;
+  	    if(HAL_GPIO_ReadPin(GPIOA,  GPIO_PIN_9) && HAL_GPIO_ReadPin(GPIOA,  GPIO_PIN_10)){
+             Feather = true;
   	  	}else{
-  	      Feather = false;
+  	         Feather = false;
   	  	}
   	  	GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
   	  	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -527,7 +532,7 @@ int main(void)
   	  	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
   	// }
 
-
+#endif
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
@@ -612,25 +617,27 @@ if(HAS_144PINS) PinDef = (struct s_PinDef *)PinDef144 ;
   skip_init:
 if(HAS_64PINS){
 	    MX_GPIO_Init();
-	 	/*  Test pin for Serial Console
-	    {
+	    /* Test for MMBasic Serial Console on PC13 if not feather  */
+	 	if (Feather==false)   {
 	  		GPIO_InitTypeDef GPIO_InitStruct;
-	  		GPIO_InitStruct.Pin = KEY0_Pin;
+	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  		GPIO_InitStruct.Pull = GPIO_PULLUP;
-	  		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	  		HAL_Delay(200);
 
-	  		if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_4) && Option.SerialConDisabled){
+	  		//if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13)){
+	  		if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled){
 	  			Option.SerialConDisabled=0;
 	  			SaveOptions();
-	  		    SoftReset();                                                // this will restart the processor
+	  			SoftReset();                                                // this will restart the processor
+
 	  		}
-	  		GPIO_InitStruct.Pin = KEY0_Pin;
+	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
 	  		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	  		GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 	 	}
-	 	*/
 
 
 	    /* Test for MMBasic Reset on PC01  */
@@ -653,6 +660,7 @@ if(HAS_64PINS){
 	 	}
 
 
+
 	HAL_SRAM_DeInit(&hsram1);
 	MX_DAC_Init();
 	MX_RNG_Init();
@@ -673,8 +681,8 @@ if(HAS_64PINS){
     MX_SDIO_SD_Init();
 
   initExtIO();
-  /*
-	if(Option.SerialConDisabled==0){
+
+   if(Option.SerialConDisabled==0 && Feather==false){
 		SetAndReserve(COM1_TX_PIN, P_OUTPUT, 1, EXT_BOOT_RESERVED);                            // config data/command as an output
 		SetAndReserve(COM1_RX_PIN, P_INPUT, 0, EXT_BOOT_RESERVED);                            // config data/command as an output
 		MX_USART1_UART_Init();
@@ -683,7 +691,7 @@ if(HAS_64PINS){
 		HAL_UART_Init(&huart1);
 		HAL_UART_Receive_IT(&huart1, &RxBuffer, 1);
 	}
-*/
+
 /*
  	if(Option.SerialConDisabled==0){
  		SetAndReserve(COM1_TX_PIN, P_OUTPUT, 1, EXT_BOOT_RESERVED);                            // config data/command as an output
@@ -702,7 +710,7 @@ if(HAS_64PINS){
   InitDisplaySPI(1);
 
  // HAL_GPIO_WritePin(GPIOD, GPIO_PIN_7, GPIO_PIN_RESET);
-	//if(Option.SerialConDisabled){
+	if(Option.SerialConDisabled){
         //PA11 and PA12 are USB D- and USB D+ i.e. USB CONSOLE
 		GPIO_InitTypeDef GPIO_InitStruct;
 		HAL_GPIO_DeInit(GPIOA, GPIO_PIN_12 | GPIO_PIN_11);
@@ -720,7 +728,7 @@ if(HAS_64PINS){
 		HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11 | GPIO_PIN_12);
 		MX_USB_DEVICE_Init();
       if(!pullup)USB_DevConnect(USB_OTG_FS);
-	//}
+	}
 
 	//MX_USB_DEVICE_Init();
    // if(!pullup)USB_DevConnect(USB_OTG_FS);
@@ -836,7 +844,7 @@ if(HAS_64PINS){
   		  if(HAS_64PINS && !Feather) MMPrintString(" (RGT6 64 pins)");
   		  if(HAS_100PINS) MMPrintString(" (VGT6 100 pins)");
   		  if(HAS_144PINS) MMPrintString(" (ZGT6 144 pins)");
-  		 //PIntH(chipID);
+  		 // PInt(Feather);
   		  PIntHC(package);PIntComma(flashsize & 0xFFFF);
   		  MMPrintString(COPYRIGHT);                                   // print copyright message
   		  PRet();
@@ -1059,6 +1067,7 @@ void SystemClock_Config(void)
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+  //PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_HSE_DIV2;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -1108,6 +1117,7 @@ void SystemClock_Config12(void)
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
   PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSE;
+  //PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_HSE_DIV3;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
