@@ -88,7 +88,8 @@ typedef struct s_PinDef PinDefAlias;
 #define NBR_PINS_MAXCHIP    144		//144	        // max number of pins for supported packages on chip
 #define MAX_ANALOGUE_PIN_PACKAGE   47 // 47		    // 47 max analogue pin no for supported packages on chip i.e 144 pins
 
-
+//#define ID_UNIQUE_ADDRESS        0x1FFF7A10 /*!< STM32F4xx address */
+//#define TM_ID_GetUnique32(x)     ((x >= 0 && x < 3) ? (*(__IO uint32_t *) (ID_UNIQUE_ADDRESS + 4 * (x))) : 0)
 
 #define package (*(volatile unsigned int *)(PACKAGE_BASE) & 0b11111)
 //#define package  0b01010
@@ -603,8 +604,8 @@ const struct s_PinDef PinDef64[NBR_PINS_64CHIP + 1]={
 #define P_I2C2_SDA              (HAS_100PINS ? 48 :(HAS_144PINS ? 70 : 0))	 	//PB11
 
 // COMx: port pin numbers
-#define COM1_TX_PIN         	(HAS_100PINS ? 68 :(HAS_144PINS ? 101 : 29)) 	//PA9 USART1 3.3v on feather 42
-#define COM1_RX_PIN         	(HAS_100PINS ? 69 :(HAS_144PINS ? 102 : 30)) 	//PA10       3.3v on feather 43
+#define COM1_TX_PIN         	(HAS_100PINS ? 68 :(HAS_144PINS ? 101 : 42)) 	//PA9 USART1 3.3v on feather 42
+#define COM1_RX_PIN         	(HAS_100PINS ? 69 :(HAS_144PINS ? 102 : 43)) 	//PA10       3.3v on feather 43
 
 #define COM2_TX_PIN         	(HAS_100PINS ? 63 :(HAS_144PINS ? 96 : 37)) 	//PC6 USART6
 #define COM2_RX_PIN         	(HAS_100PINS ? 64 :(HAS_144PINS ? 97 : 38)) 	//PC7

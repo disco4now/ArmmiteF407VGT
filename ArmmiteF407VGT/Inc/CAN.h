@@ -1,5 +1,5 @@
 /*-*****************************************************************************
-MMBasic for STM32H743 [ZI2 and VIT6] (Armmite H7)
+MMBasic for STM32H407 [VGT6] (Armmite F4)
 
 CAN.h
 

@@ -160,6 +160,10 @@ extern void MMPrintString(char* s);
 //#define package (*(volatile unsigned int *)(PACKAGE_BASE) & 0b11111)
 #define flashsize *(volatile unsigned int *)(FLASHSIZE_BASE)
 #define chipID (DBGMCU->IDCODE & 0x00000FFF)
+#define ID_UNIQUE_ADDRESS        0x1FFF7A10 /*!< STM32F4xx address */
+#define TM_ID_GetUnique8(x)      ((x >= 0 && x < 12) ? (*(__IO uint8_t *) (ID_UNIQUE_ADDRESS + (x))) : 0)
+#define TM_ID_GetUnique32(x)     ((x >= 0 && x < 3) ? (*(__IO uint32_t *) (ID_UNIQUE_ADDRESS + 4 * (x))) : 0)
+#define TM_ID_GetUnique64(x)     ((x >= 0 && x < 1) ? (*(__IO uint64_t *) (ID_UNIQUE_ADDRESS + 8 * (x))) : 0)
 #define CONSOLE_RX_BUF_SIZE 512
 #define CONSOLE_TX_BUF_SIZE 1024                    // this is made a large size so that the serial console does not slow down the USB and LCD consoles
 #define BREAK_KEY           3                       // the default value (CTRL-C) for the break key.  Reset at the command prompt.
