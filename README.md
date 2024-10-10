@@ -11,7 +11,8 @@ A user manual for MMBasic on the STM32F407VGT is under the docs directory.
 
 Change list from V5.07.00
 
-
+V5.07.02a1:  
+Fixed path to STM32F407VGT_FLASH.ld in .cproject to make it relative ..\STM32F407VGT_FLASH.ld
 
 V5.07.02a0:  
 Initial alpha release of V5.07.02
