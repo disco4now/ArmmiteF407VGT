@@ -80,31 +80,23 @@ typedef struct s_PinDef PinDefAlias;
 #define DIGITAL_OUT  32
 #define OC_OUT       64
 #define DO_NOT_RESET 128
-//#define HAS_64PINS 0
+
 #define NBR_PINS_144CHIP    144					    // number of pins for external i/o on a 144 pin chip
 #define NBR_PINS_100CHIP    100					    // number of pins for external i/o on a 100 pin chip
-#define NBR_PINS_64CHIP    64					    // number of pins for external i/o on a 64 pin chip
+#define NBR_PINS_64CHIP      64					    // number of pins for external i/o on a 64 pin chip
 
 #define NBR_PINS_MAXCHIP    144		//144	        // max number of pins for supported packages on chip
 #define MAX_ANALOGUE_PIN_PACKAGE   47 // 47		    // 47 max analogue pin no for supported packages on chip i.e 144 pins
 
-//#define ID_UNIQUE_ADDRESS        0x1FFF7A10 /*!< STM32F4xx address */
-//#define TM_ID_GetUnique32(x)     ((x >= 0 && x < 3) ? (*(__IO uint32_t *) (ID_UNIQUE_ADDRESS + 4 * (x))) : 0)
 
-#define package (*(volatile unsigned int *)(PACKAGE_BASE) & 0b11111)
-//#define package  0b01010
+#define package (*(volatile unsigned int *)(PACKAGE_BASE) & 0b11100000000)
 #define flashsize *(volatile unsigned int *)(FLASHSIZE_BASE)
 #define chipID (DBGMCU->IDCODE & 0x00000FFF)
-//#define HAS_32PINS          (package==0x8)
-//#define HAS_48PINS          (package==0xB)
-//#define HAS_64PINS          (package==0x9 || package==0)
-//#define HAS_64PINS            (package==0xA || package==0x11)
-//#define HAS_64PINS          1
-//#define HAS_100PINS          (package==0x10)
-#define HAS_100PINS          (package==0x1C)
-#define HAS_144PINS          (package==0x06)  //06
+
+#define HAS_100PINS          (package==0x500)  //
+#define HAS_144PINS          (package==0x600)  //
 // default to 64 pins if package is unknown
-#define HAS_64PINS           (package==0xA || package==0x11 || (!HAS_144PINS && !HAS_100PINS ))
+#define HAS_64PINS           (package==0x400 || (!HAS_144PINS && !HAS_100PINS ))
 
 #define NBRPINS             (HAS_144PINS ? 144 :(HAS_100PINS ? 100 : 64))
 
