@@ -13,6 +13,8 @@ Change list from V5.07.00
 
 V5.07.02a1:  
 Fixed path to STM32F407VGT_FLASH.ld in .cproject to make it relative ..\STM32F407VGT_FLASH.ld
+ReleaseFeather configuration added to generate ArmmiteF407VGT6feather.bin  
+Command Line Buffer now cleared by OPTION RESET
 
 V5.07.02a0:  
 Initial alpha release of V5.07.02
