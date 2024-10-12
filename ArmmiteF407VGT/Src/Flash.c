@@ -774,12 +774,21 @@ void ResetAllOptions(void) {
     Option.Refresh = 0;
 	Option.DISPLAY_WIDTH = 0;
 	Option.DISPLAY_HEIGHT = 0;
-
+	// Clear the commandline buffer as well
+	ClearRTCRam();
 
 }
 void ClearSavedVars(void) {
     FlashWriteInit(SAVED_VARS_FLASH);                              // initialise for writing to the flash
 }
+
+void ClearRTCRam(void) {
+	int i;
+	char *w;
+    w=(char*)RTC_RAM_ADDR;
+    for(i=0;i<RTC_RAM_SIZE;i++)*w++=0x00;
+}
+
 /*
 void ClearSavedVars(void) {
 	int i;
@@ -1571,8 +1580,9 @@ void cmd_flash(void){
 
 
 /***********************************************************************************
-  W25Q16 Support Routines used by library andFlash commands
+  W25Q16 Support Routines used by library and Flash commands on VET6
  **********************************************************************************/
+/*
 void WBEraseArea(int erasemode,int pageno){
 
 	 int add;
@@ -1680,6 +1690,7 @@ void WBReadPage(int pageno,char *p){
      PinSetBit(Option.FLASH_CS,LATSET);
      //MMPrintString("-------------------------------Read End ");
 }
+*/
 
 #ifdef CMD_FLASH
 /* Write 16 Page Sector  i.e. 4K *****************************/
@@ -1780,12 +1791,13 @@ void ResetAllBackupRam(void) {
 // erase all flash memory clear save vars and reset the options to their defaults
 // used  when the user grounds PA? on startup i.e. KEY 1 power up
 void ResetAllFlash(void) {
-	ResetAllOptions();
+	ResetAllOptions();                                 // Also clear RTC Ram
 	SaveOptions();                                     //  and write them to flash
 	ClearSavedVars();					           	   // erase saved vars
     FlashWriteInit(PROGRAM_FLASH);                     // erase program memory
     FlashWriteByte(0); FlashWriteByte(0);              // terminate the program in flash
     FlashWriteClose();
+   				           	       // clear the commandline buffer
 }
 
 /**
