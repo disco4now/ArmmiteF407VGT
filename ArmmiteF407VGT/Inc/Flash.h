@@ -70,6 +70,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	#define SAVED_VAR_RAM_ADDR     ((uint32_t)0x40024000)   /* Start of Saved Variables flash area */
 //	#define FLASH_PROGRAM_ADDR       ADDR_FLASH_SECTOR_0_BANK2   /* Start Basic Program flash area */
 	#define SAVED_VAR_RAM_SIZE 0x1000  // amount of flash reserved for saved variables
+    #define RTC_RAM_ADDR     ((uint32_t)0x40024000)   /* Start of RTC ram area */
+    #define RTC_RAM_SIZE 0x1000  // amount of  RTC ram
 
 /**********************************************************************************
  the C language function associated with commands, functions or operators should be
@@ -139,6 +141,8 @@ extern volatile uint32_t  realflashpointer;
 void ResetAllOptions(void);
 void ResetAllFlash(void);
 void ResetAllBackupRam(void);
+
+
 void SaveOptions(void);
 void LoadOptions(void);
 void FlashWriteInit(int sector);
@@ -157,6 +161,7 @@ void MIPS16 cmd_flash(void);   //W25Q16
 long long int CallCFunction(char *CmdPtr, char *ArgList, char *DefP, char *CallersLinePtr);
 extern char * ProgMemory;
 extern void ClearSavedVars(void);
+extern void ClearRTCRam(void);
 void RoundDoubleFloat(MMFLOAT *ff);
 
 //extern void AppendLibrary();
