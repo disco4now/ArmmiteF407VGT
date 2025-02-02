@@ -3,13 +3,43 @@ Files to build the Armmite F4 MMBasic running on the STM32F407VGT6 100Pin,STM32F
 
 
 
-The STM32CubeIDE project is directory ArmmiteF407VGT. This should be placed in your STM32CubeIDE workspace. e.g. workspace/ArmmiteF407VGT and opened and compiled using STM32CubeIDE.  
+The STM32CubeIDE project is directory ArmmiteF407VGT. This should be placed in your STM32CubeIDE workspace. e.g. workspace/ArmmiteF407VGT and opened and compiled using STM32CubeIDE ver 1.9.0.  
 Use GCC 10.3-2021.10 to ensure the CCRAM is not exceeded. The later version seem to use more CCRAM   
 A compiled binary version is under the the binaries directory.  
 A user manual for MMBasic on the STM32F407VGT is under the docs directory.  
 
 
 Change list from V5.07.00
+
+V5.07.02b0:   
+Armmite F407xGT6 5.07.02 Beta 0  
+Support for STM32F407xGT6 chips with 1 Meg Flash.i.e STM32F407VGT6 100 pin, STM32F407ZGT6 144 pin, WeAct STM32F405RGT 64 pin.  
+The Adfruit Feather STM32F405RGT 64 pin with 12MHz clock is also supported.  
+The firmware now optimised for speed rather than size.  
+OPTIONS are moved back into flash so not dependent on RTC battery.  
+SAVED VARS are moved back into flash so not dependent on RTC battery.  
+Both will now be reset to default when new firmware is loaded.  
+
+Command Line Buffer moved to RTC Ram (first 1K)  
+If there is no RTC battery the command line buffer can contain rubbish.  
+OPTION RESET will clear the options and also the Command Line Buffer.  
+RTC Ram is also cleared with an MMBasic RESET.  
+
+LIBRARY is now an additional 128K flash section separate to program memory and does not rely on the SPI Windbond flash chip.  
+LIBRARY RESTORE will restore any existing library after OPTION RESET.   
+MM.INFO(DEVICETYPE) added. Returns "Feather" for Adfruit feather else ""  
+
+OPTION Fn5-9 added.  
+LINE AA command added  
+LINE GRAPH command added  
+LINE PLOT command added  
+MATH CROSSING() added  
+MATH CRC12 added  
+MATH POWER added  
+MATH SHIFT added  
+
+SORT command enhanced as per Picomites.  
+Other enhancements/fixes as per Armmite F407 5.07.02 Beta 3/4  
 
 V5.07.02a1:  
 Fixed path to STM32F407VGT_FLASH.ld in .cproject to make it relative ..\STM32F407VGT_FLASH.ld   
