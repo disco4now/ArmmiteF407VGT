@@ -166,19 +166,19 @@ const struct s_PinDef PinDef144[NBR_PINS_144CHIP + 1]={
 		{ GPIOG,  GPIO_PIN_0 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					    	// pin 56
 		{ GPIOG,  GPIO_PIN_1 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					    	// pin 57
 
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 58 FSMC_D4
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 59 FSMC_D5
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 60 FSMC_D6
 
+		{ GPIOE,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 58 FSMC_D4
+		{ GPIOE,  GPIO_PIN_8,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 59 FSMC_D5
+		{ GPIOE,  GPIO_PIN_9,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 60 FSMC_D6
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 61 VSS
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 62 VDD
+		{ GPIOE,  GPIO_PIN_10, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 63 FSMC_D7
+		{ GPIOE,  GPIO_PIN_11, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 64 FSMC_D8
+		{ GPIOE,  GPIO_PIN_12, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 65 FSMC_D9
+		{ GPIOE,  GPIO_PIN_13, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 66 FSMC_D10
+		{ GPIOE,  GPIO_PIN_14, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 67 FSMC_D11
+		{ GPIOE,  GPIO_PIN_15, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 68 FSMC_D12
 
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 63 FSMC_D7
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 64 FSMC_D8
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 65 FSMC_D9
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 66 FSMC_D10
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 67 FSMC_D11
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 68 FSMC_D12
 	    { GPIOB,  GPIO_PIN_10,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 69 I2C2-SCL
 	    { GPIOB,  GPIO_PIN_11,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 70 I2C2-SDA
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 71 VCAP
@@ -187,18 +187,21 @@ const struct s_PinDef PinDef144[NBR_PINS_144CHIP + 1]={
 	    { GPIOB,  GPIO_PIN_13,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 74 SPI2-CLK
 	    { GPIOB,  GPIO_PIN_14,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 75 SPI2-IN
 	    { GPIOB,  GPIO_PIN_15,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 76 SPI2-OUT
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 77 FSMC_D13
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 78 FSMC_D14
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 79 FSMC_D15
+
+		{ GPIOD,  GPIO_PIN_8,   DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 77 FSMC_D13
+		{ GPIOD,  GPIO_PIN_9,   DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 78 FSMC_D14
+		{ GPIOD,  GPIO_PIN_10,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 79 FSMC_D15
+
+
 		{ GPIOD,  GPIO_PIN_11,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},    						// pin 80 Drive_VBUS_FS
 		{ GPIOD,  GPIO_PIN_12,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},    						// pin 81 PWM-2A
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 82 FSMC_A18
+		{ GPIOD,  GPIO_PIN_13,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 82 FSMC_A18
 
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 83 VSS
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 84 VDD
 
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 85 FSMC_D0
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 86 FSMC_D1
+		{ GPIOD,  GPIO_PIN_14,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 85 FSMC_D0
+		{ GPIOD,  GPIO_PIN_15,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 86 FSMC_D1
 
 		{ GPIOG,  GPIO_PIN_2 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					    	// pin 87
 		{ GPIOG,  GPIO_PIN_3 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					    	// pin 88
@@ -229,23 +232,25 @@ const struct s_PinDef PinDef144[NBR_PINS_144CHIP + 1]={
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 111 SDIO_D2
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 112 SDIO_D3
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 113 SDIO_CK
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 114 FSMC_D2
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 115 FSMC_D3
+		{ GPIOD,  GPIO_PIN_0,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                        	// pin 81 FSMC_D2    PD0   ------> FSMC_D2
+		{ GPIOD,  GPIO_PIN_1,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 82 FSMC_D3    PD1   ------> FSMC_D3
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 116 SDIO_CMD
 	    { GPIOD,  GPIO_PIN_3,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 117 KBD_DATA
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 118 FSMC_NOE
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 119 FSMC_NWE
+		{ GPIOD,  GPIO_PIN_4,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 118 FSMC_NOE   (RD)
+		{ GPIOD,  GPIO_PIN_5,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                         	// pin 119 FSMC_NWE   (WR)
 
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 120 VSS
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 121 VDD
 
 	    { GPIOD,  GPIO_PIN_6,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 122
-		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 123 FSMC_NE1
+		{ GPIOD,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 88 FSMC_NE1   (CS)
 
 		{ GPIOG,  GPIO_PIN_9 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					    	// pin 124
 		{ GPIOG,  GPIO_PIN_10 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					   	// pin 125
 		{ GPIOG,  GPIO_PIN_11 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					   	// pin 126
-		{ GPIOG,  GPIO_PIN_12 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					   	// pin 127
+
+		{ GPIOG,  GPIO_PIN_12,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 127
+
 		{ GPIOG,  GPIO_PIN_13 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    					   	// pin 128
 		{ GPIOG,  GPIO_PIN_14 , DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    				    	// pin 129
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 130 VSS
@@ -265,7 +270,6 @@ const struct s_PinDef PinDef144[NBR_PINS_144CHIP + 1]={
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 143 PDR_ON
 	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 144 VDD
 };
-
 
 const struct s_PinDef PinDef100[NBR_PINS_100CHIP + 1]={
 	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 0
@@ -375,6 +379,116 @@ const struct s_PinDef PinDef100[NBR_PINS_100CHIP + 1]={
 		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 99 VSS
 	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 100 VDD
 };
+#ifdef OLD
+const struct s_PinDef PinDef100[NBR_PINS_100CHIP + 1]={
+	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 0
+		{ GPIOE,  GPIO_PIN_2,  DIGITAL_IN | DIGITAL_OUT	,  NULL, 0},    						// pin 1 IR
+		{ GPIOE,  GPIO_PIN_3,  DIGITAL_IN | DIGITAL_OUT	,  NULL, 0},    						// pin 2 Count 3/KEY1
+		{ GPIOE,  GPIO_PIN_4,  DIGITAL_IN | DIGITAL_OUT	,  NULL, 0},    						// pin 3 Count 4/KEY0
+		{ GPIOE,  GPIO_PIN_5,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},    						// pin 4 PWM-3A
+		{ GPIOE,  GPIO_PIN_6,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},    						// pin 5 PWM-3B
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 6 VBAT
+		{ GPIOC,  GPIO_PIN_13,  DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    						// pin 7
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 8 OSC32_IN
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 9 OSC32_OUT
+	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 10 VSS
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 11 VDD
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 12 OSC8_IN
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 13 OSC8_OUT
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 14 NRST
+		{ GPIOC,  GPIO_PIN_0,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_10},    // pin 15
+		{ GPIOC,  GPIO_PIN_1,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC2, ADC_CHANNEL_11},    // pin 16
+		{ GPIOC,  GPIO_PIN_2,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC3, ADC_CHANNEL_12},    // pin 17
+		{ GPIOC,  GPIO_PIN_3,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_13},    // pin 18
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 19 VDD
+	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 20 VSSA
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 21 VREF+
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 22 VDDA
+		{ GPIOA,  GPIO_PIN_0,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_0},    	// pin 23 COM3-TX/COUNT-0/WK_UP
+	    { GPIOA,  GPIO_PIN_1,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_1},     // pin 24 COM3-RX
+	    { GPIOA,  GPIO_PIN_2,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_2},     // pin 25 COM4-TX
+		//
+	    { GPIOA,  GPIO_PIN_3,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_3},     // pin 26 COM4-RX
+	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 27 VSS
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 28 VDD
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 29 DAC-1
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 30 DAC-2
+	    { GPIOA,  GPIO_PIN_6,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_6},     // pin 31 PWM-1A +LED-D2
+	    { GPIOA,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_7},     // pin 32 PWM-1B +LED-D3
+		{ GPIOC,  GPIO_PIN_4,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN ,  ADC2, ADC_CHANNEL_14},   // pin 33
+		{ GPIOC,  GPIO_PIN_5,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN ,  ADC2, ADC_CHANNEL_15},   // pin 34 T_IRQ
+	    { GPIOB,  GPIO_PIN_0,  DIGITAL_IN | DIGITAL_OUT | ANALOG_IN , ADC1, ADC_CHANNEL_8},     // pin 35 PWM-1C/F_CS
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 36 LCD_BL
+		{ GPIOB,  GPIO_PIN_2,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						    // pin 37
+		{ GPIOE,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 38 FSMC_D4
+		{ GPIOE,  GPIO_PIN_8,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 39 FSMC_D5
+		{ GPIOE,  GPIO_PIN_9,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 40 FSMC_D6
+		{ GPIOE,  GPIO_PIN_10, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 41 FSMC_D7
+		{ GPIOE,  GPIO_PIN_11, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 42 FSMC_D8
+		{ GPIOE,  GPIO_PIN_12, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 43 FSMC_D9
+		{ GPIOE,  GPIO_PIN_13, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 44 FSMC_D10
+		{ GPIOE,  GPIO_PIN_14, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 45 FSMC_D11
+		{ GPIOE,  GPIO_PIN_15, DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 46 FSMC_D12
+	    { GPIOB,  GPIO_PIN_10,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 47 I2C2-SCL
+	    { GPIOB,  GPIO_PIN_11,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 48 I2C2-SDA
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 49 VCAP
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 50 VDD
+		//
+	    { GPIOB,  GPIO_PIN_12,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 51 T_CS
+	    { GPIOB,  GPIO_PIN_13,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 52 SPI2-CLK
+	    { GPIOB,  GPIO_PIN_14,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 53 SPI2-IN
+	    { GPIOB,  GPIO_PIN_15,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 54 SPI2-OUT
+		{ GPIOD,  GPIO_PIN_8,   DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 55 FSMC_D13
+		{ GPIOD,  GPIO_PIN_9,   DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 56 FSMC_D14
+		{ GPIOD,  GPIO_PIN_10,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 57 FSMC_D15
+		{ GPIOD,  GPIO_PIN_11,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},    						// pin 58 Drive_VBUS_FS
+		{ GPIOD,  GPIO_PIN_12,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},    						// pin 59 PWM-2A
+		{ GPIOD,  GPIO_PIN_13,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                         	// pin 60 FSMC_A18
+		{ GPIOD,  GPIO_PIN_14,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 61 FSMC_D0
+		{ GPIOD,  GPIO_PIN_15,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 62 FSMC_D1
+		{ GPIOC,  GPIO_PIN_6,  DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    							// pin 63 COM2-TX
+		{ GPIOC,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT,  NULL, 0},    							// pin 64 COM2-RX
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 65 SDIO_D0
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 66 SDIO_D1
+	    { GPIOA,  GPIO_PIN_8, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 67
+	    { GPIOA,  GPIO_PIN_9, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 68 COM1-TX
+	    { GPIOA,  GPIO_PIN_10, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 69 COM1-RX
+//		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 68 CONSOLE-TX
+//		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 69 CONSOLE-RX
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 70 USB-DM
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 71 USB-DP
+		{ GPIOA,  GPIO_PIN_13, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 72 SWDIO
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 73 VCAP
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 74 VSS
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 75 VDD
+		//
+	    { GPIOA,  GPIO_PIN_14, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 76 SWCLK
+	    { GPIOA,  GPIO_PIN_15,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    						// pin 77 KBD_CLK
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 78 SDIO_D2
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 79 SDIO_D3
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 80 SDIO_CK
+		{ GPIOD,  GPIO_PIN_0,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                        	// pin 81 FSMC_D2    PD0   ------> FSMC_D2
+		{ GPIOD,  GPIO_PIN_1,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 82 FSMC_D3    PD1   ------> FSMC_D3
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 83 SDIO_CMD
+	    { GPIOD,  GPIO_PIN_3,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 84 KBD_DATA
+		{ GPIOD,  GPIO_PIN_4,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                           	// pin 85 FSMC_NOE
+		{ GPIOD,  GPIO_PIN_5,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                         	// pin 86 FSMC_NWE
+	    { GPIOD,  GPIO_PIN_6,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 87
+		{ GPIOD,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT ,  NULL, 0},                          	// pin 88 FSMC_NE1
+	    { GPIOB,  GPIO_PIN_3,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 89 SPI_CLK
+	    { GPIOB,  GPIO_PIN_4,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 90 SPI_IN
+	    { GPIOB,  GPIO_PIN_5,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 91 SPI-OUT
+	    { GPIOB,  GPIO_PIN_6,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 92 I2C-SCL/NRF_CE
+	    { GPIOB,  GPIO_PIN_7,  DIGITAL_IN | DIGITAL_OUT , NULL, 0},    							// pin 93 I2C-SDA/NRF_CS
+	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 94 BOOT0
+		{ GPIOB,  GPIO_PIN_8, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 95 PWM-2B
+		{ GPIOB,  GPIO_PIN_9, DIGITAL_IN | DIGITAL_OUT , NULL, 0},      						// pin 96 PWM-2C
+		{ GPIOE,  GPIO_PIN_0,  DIGITAL_IN | DIGITAL_OUT	,  NULL, 0},    						// pin 97
+		{ GPIOE,  GPIO_PIN_1,  DIGITAL_IN | DIGITAL_OUT	,  NULL, 0},    						// pin 98 COUNT 1
+		{ NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 99 VSS
+	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 100 VDD
+};
+#endif
 
 const struct s_PinDef PinDef64[NBR_PINS_64CHIP + 1]={
 	    { NULL,  0, PUNUSED , NULL, 0},                                                       	// pin 0
@@ -581,10 +695,10 @@ const struct s_PinDef PinDef64[NBR_PINS_64CHIP + 1]={
 #define IRPIN                   (HAS_100PINS ? 1  :(HAS_144PINS ? 1   : 10))		//PE2  PC2
 
 
-//CAN Pins F4
+//CAN Pins F407xGT
 
 #define CAN_1A_RX               (HAS_100PINS ? 95  : (HAS_144PINS ? 139 : 61))      //PB8  PB8  Also  PWM2B PWM2A Feather
-#define CAN_1A_TX               (HAS_100PINS ? 96  : (HAS_144PINS ? 160 : 62))      //PB9  PB9  Also  PWM2C PWM2B Feather
+#define CAN_1A_TX               (HAS_100PINS ? 96  : (HAS_144PINS ? 140 : 62))      //PB9  PB9  Also  PWM2C PWM2B Feather
 #define CAN_2A_RX               (HAS_100PINS ? 81  : 114)                           //PD0  PD1  Also SSD1963 D2 Not Available on 64pin
 #define CAN_2A_TX               (HAS_100PINS ? 82  : 115)                           //PD1  PB9  Also SSD1963 D3 Not Available on 64pin
 
@@ -592,8 +706,8 @@ const struct s_PinDef PinDef64[NBR_PINS_64CHIP + 1]={
 #define P_I2C_SCL               (HAS_100PINS ? 92 :(HAS_144PINS ? 136 : 58))	//PB6
 #define P_I2C_SDA               (HAS_100PINS ? 93 :(HAS_144PINS ? 137 : 59))	//PB7
 
-#define P_I2C2_SCL              (HAS_100PINS ? 47 :(HAS_144PINS ? 69 : 0))	 	//PB10
-#define P_I2C2_SDA              (HAS_100PINS ? 48 :(HAS_144PINS ? 70 : 0))	 	//PB11
+#define P_I2C2_SCL              (HAS_100PINS ? 47 :(HAS_144PINS ? 69 : 29))	 	//PB10
+#define P_I2C2_SDA              (HAS_100PINS ? 48 :(HAS_144PINS ? 70 : 30))	 	//PB11
 
 // COMx: port pin numbers
 #define COM1_TX_PIN         	(HAS_100PINS ? 68 :(HAS_144PINS ? 101 : 42)) 	//PA9 USART1 3.3v on feather 42

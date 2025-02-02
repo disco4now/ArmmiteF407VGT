@@ -44,10 +44,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //#define DEBUGMODE
 
-#define VERSION         "5.07.02a0"
+#define VERSION         "5.07.02b0"
 #define MES_SIGNON  "ARMmite xGT6 MMBasic Version " VERSION
-#define YEAR		"2011-2024"			    // and the year
-#define YEAR2          "2016-2024"
+#define YEAR		"2011-2025"			    // and the year
+#define YEAR2       "2016-2025"
 #define COPYRIGHT  "\r\nCopyright " YEAR " Geoff Graham\r\nCopyright " YEAR2 " Peter Mather\r\n"
 
 

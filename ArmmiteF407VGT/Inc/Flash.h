@@ -65,7 +65,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #define FLASH_LIBRARY_ADDR       ADDR_FLASH_SECTOR_11   /* Start Basic Library flash area */
 		#define FLASH_SAVED_OPTION_ADDR  ADDR_FLASH_SECTOR_1   /* Start of Saved Options flash area */
 		#define FLASH_SAVED_VAR_ADDR     ADDR_FLASH_SECTOR_2   /* Start of Saved Variables flash area */
-		//#define SAVEDVARS_FLASH_SIZE 16384  // amount of flash reserved for saved variables
+		//#define SAVEDVARS_FLASH_SIZE 16384  // amount of flash reserved for saved variables 16K
         #define SAVEDVARS_FLASH_SIZE 0x1000  // amount of flash reserved for saved variables  4K for now
 	#define SAVED_VAR_RAM_ADDR     ((uint32_t)0x40024000)   /* Start of Saved Variables flash area */
 //	#define FLASH_PROGRAM_ADDR       ADDR_FLASH_SECTOR_0_BANK2   /* Start Basic Program flash area */
@@ -118,7 +118,7 @@ struct option_s {
     char Refresh;
     unsigned char FLASH_CS;
     unsigned char NoScroll;         //NoScroll from picomites added @beta3
-    char dummy[1];        //27
+    unsigned char dummy;        //27
     short MaxCtrls;       //28        2  // maximum number of controls allowed
     short RTC_Calibrate;  //32  (30)bytes  2
     int DISPLAY_WIDTH;    //36  (32)      4
@@ -130,8 +130,14 @@ struct option_s {
     unsigned int ProgFlashSize;    // 64  4 used to store the size of the program flash (also start of the LIBRARY code)
     int DefaultFC, DefaultBC;      // 68  4  the default colours
     short  TOUCH_XZERO;            // 72  2
-    short  TOUCH_YZERO; //80 bytes // 74  2
-                        // leaves 76,77,78,79  i.e 4 bytes
+    short  TOUCH_YZERO;            // 74  2
+    uint32_t magic;               // 76 4 =80  i.e 4 bytes
+    unsigned char F1key[MAXKEYLEN]; //80+64 =144
+    unsigned char F5key[MAXKEYLEN]; //144+64=208
+    unsigned char F6key[MAXKEYLEN]; //206+64=270
+    unsigned char F7key[MAXKEYLEN]; //270+64=334
+    unsigned char F8key[MAXKEYLEN]; //334+64=398
+    unsigned char F9key[MAXKEYLEN]; //398+64=462
 
 };
 

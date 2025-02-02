@@ -67,7 +67,7 @@ void cmd_port(void);
 void fun_port(void);
 
 void cmd_ir(void);
-void cmd_bitbang(void);
+void cmd_device(void);
 //void cmd_lcd(void);
 void cmd_keypad(void);
 void fun_distance(void);
@@ -95,7 +95,7 @@ void cmd_sync(void);
 	{ "Pulse",		T_CMD,			0, cmd_pulse        },
 	{ "Port(",		T_CMD | T_FUN,		0, cmd_port	    },
 	{ "IR",                 T_CMD,			0, cmd_ir           },
-	{ "Device",             T_CMD,			0, cmd_bitbang          },
+	{ "Device",             T_CMD,			0, cmd_device          },
 //	{ "Bitbang",             T_CMD,			0, cmd_bitbang          },
 //	{ "LCD",                T_CMD,			0, cmd_lcd          },
 	{ "KeyPad",             T_CMD,			0, cmd_keypad       },

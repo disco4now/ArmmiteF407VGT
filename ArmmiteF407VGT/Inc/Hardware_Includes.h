@@ -155,7 +155,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define SPI_PANEL_START 11 //<= SPI PANEL is SPI panel
 #define ST7735          11
-#define ILI9341_I       12
+//#define SPARE      12
 #define ST7735S         13
 //#define SPARE         14
 #define ILI9481IPS      15

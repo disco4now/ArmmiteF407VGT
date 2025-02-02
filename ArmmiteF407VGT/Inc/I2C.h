@@ -74,32 +74,42 @@ void fun_mmi2c(void);
 #define I2C_State_Stop     8					    // Sending Stop
 
 // defines for I2C_Status
-#define I2C_Status_Enabled			0x00000001
-#define I2C_Status_MasterCmd			0x00000002
-#define I2C_Status_NoAck			0x00000010
-#define I2C_Status_Timeout			0x00000020
-#define I2C_Status_InProgress			0x00000040
-#define I2C_Status_Completed			0x00000080
-#define I2C_Status_Interrupt			0x00000100
-#define I2C_Status_BusHold			0x00000200
-#define I2C_Status_10BitAddr			0x00000400
-#define I2C_Status_BusOwned			0x00000800
-#define I2C_Status_Send				0x00001000
-#define I2C_Status_Receive		    	0x00002000
-#define I2C_Status_Disable			0x00004000
-#define I2C_Status_Master			0x00008000
-#define I2C_Status_Slave			0x00010000
-#define I2C_Status_Slave_Send			0x00020000
-#define I2C_Status_Slave_Receive		0x00040000
-#define I2C_Status_Slave_Send_Rdy		0x00080000
-#define I2C_Status_Slave_Receive_Rdy            0x00100000
-#define I2C_Status_Slave_Receive_Full           0x00200000
+#define I2C_Status_Enabled			  0x00000001
+#define I2C_Status_MasterCmd		  0x00000002
+#define I2C_Status_NoAck			  0x00000010
+#define I2C_Status_Timeout			  0x00000020
+#define I2C_Status_InProgress		  0x00000040
+#define I2C_Status_Completed		  0x00000080
+#define I2C_Status_Interrupt		  0x00000100
+#define I2C_Status_BusHold			  0x00000200
+#define I2C_Status_10BitAddr		  0x00000400
+#define I2C_Status_BusOwned			  0x00000800
+#define I2C_Status_Send				  0x00001000
+#define I2C_Status_Receive		      0x00002000
+#define I2C_Status_Disable			  0x00004000
+#define I2C_Status_Master			  0x00008000
+#define I2C_Status_Slave			  0x00010000
+#define I2C_Status_Slave_Send		  0x00020000
+#define I2C_Status_Slave_Receive	  0x00040000
+#define I2C_Status_Slave_Send_Rdy	  0x00080000
+#define I2C_Status_Slave_Receive_Rdy  0x00100000
+#define I2C_Status_Slave_Receive_Full 0x00200000
 
 // Global variables provided by I2C.c
 extern unsigned int I2C_Timer;                                      // master timeout counter
 extern char *I2C_IntLine;                                           // pointer to the master interrupt line number
 extern void i2c_disable(void);
 extern void i2c2_disable(void);
+extern void i2c1_slave_disable(void);
+extern void i2c2_slave_disable(void);
+
+extern volatile unsigned int I2C_Status;                            // status flags
+extern volatile unsigned int I2C2_Status;                            // status flags
+extern char *I2C_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
+extern char *I2C_Slave_Receive_IntLine;                             // pointer to the slave receive interrupt line number
+extern char *I2C2_Slave_Send_IntLine;                                // pointer to the slave send interrupt line number
+extern char *I2C2_Slave_Receive_IntLine;                             // pointer to the slave receive interrupt line number
+
 extern void RtcGetTime(void);
 extern int cameraopen;
 extern void CloseCamera(void);
