@@ -91,6 +91,7 @@ extern volatile int CSubComplete;
 extern char *KeyInterrupt;
 extern volatile int Keycomplete;
 extern int keyselect;
+extern char Feather ;
 
 extern SPI_HandleTypeDef hspi1;
 uint32_t synctime=0;
@@ -342,13 +343,13 @@ uint8_t cMAP[16]={15,16,17,18,33,34,63,64,65,66,78,79,80,7,8,9};
 uint8_t dMAP[16]={81,82,83,84,85,86,87,88,55,56,57,58,59,60,61,62};
 uint8_t eMAP[16]={97,98,1,2,3,4,5,38,39,40,41,42,43,44,45,46};
 
-uint8_t aMAP144[16]={23,24,25,26,29,30,31,32,67,68,69,70,71,72,76,77};
-uint8_t bMAP144[16]={35,36,37,89,90,91,92,93,95,96,47,48,51,52,53,54};
-uint8_t cMAP144[16]={15,16,17,18,33,34,63,64,65,66,78,79,80,7,8,9};
-uint8_t dMAP144[16]={81,82,83,84,85,86,87,88,55,56,57,58,59,60,61,62};
-uint8_t eMAP144[16]={97,98,1,2,3,4,5,38,39,40,41,42,43,44,45,46};
-uint8_t fMAP144[16]={81,82,83,84,85,86,87,88,55,56,57,58,59,60,61,62};
-uint8_t gMAP144[16]={97,98,1,2,3,4,5,38,39,40,41,42,43,44,45,46};
+uint8_t aMAP144[16]={34,35,36,37,40,41,42,43,100,101,102,103,104,105,109,110};
+uint8_t bMAP144[16]={46,47,48,133,134,135,136,137,139,140,69,70,73,74,75,76};
+uint8_t cMAP144[16]={26,27,28,29,44,45,96,97,98,99,111,112,113,7,8,9};
+uint8_t dMAP144[16]={114,115,116,117,118,119,122,123,77,78,79,80,81,82,85,86};
+uint8_t eMAP144[16]={141,142,1,2,3,4,5,58,59,60,63,64,65,66,67,68};
+uint8_t fMAP144[16]={10,11,12,13,14,15,18,19,20,21,22,49,50,53,54,55};
+uint8_t gMAP144[16]={56,57,87,88,89,90,91,92,93,124,125,126,127,128,129,132};
 
 uint8_t aMAP64[16]={14,15,16,17,20,21,22,23,41,42,43,44,45,46,49,50};
 uint8_t bMAP64[16]={26,27,28,55,56,57,58,59,61,62,29,30,33,34,35,36};
@@ -416,16 +417,20 @@ int codemap(char code, int pin){
 }
 int codecheck(char *line){
 	char code=0;
+	char codeendlower='e';
+	char codeendupper='E';
+	if(HAS_144PINS){codeendlower='g';codeendupper='G';}
+	if(HAS_64PINS){codeendlower='c';codeendupper='C';}
 	if(*line=='P' || *line=='p'){
 		line++;
-		if((*line>='A' && *line<='E') || (*line>='a' && *line<='e')){
+		 if((*line>='A' && *line<=codeendupper) || (*line>='a' && *line<=codeendlower)){
 			code=*line;
 			line++;
 			if(!IsDigit((uint8_t)*line)){ //check for a normal variable
 				code=0;
 				line-=2;
 			}
-		}
+		 }
 	}
 	return code;
 }
@@ -436,9 +441,9 @@ int codecheck(char *line){
 	void cmd_pin(void) {
 		int pin, value;
 		char code;
-		if((code=codecheck(cmdline)))cmdline+=2;
-		pin = getinteger(cmdline);
-		if(code)pin=codemap(code, pin);
+		if((code=codecheck(cmdline)))cmdline+=2;  //Get the Port A-E  if its like PE4 else returns 0. points to Pinno.
+		pin = getinteger(cmdline);                //get the pin no
+		if(code)pin=codemap(code, pin);           // if of form PE4 thne resolve actual pinno
 	    if(IsInvalidPin(pin)) error("Invalid pin");
 		while(*cmdline && tokenfunction(*cmdline) != op_equal) cmdline++;
 		if(!*cmdline) error("Invalid syntax");
@@ -1622,10 +1627,13 @@ void ClearExternalIO(void) {
     ADCclose();
     ResetDisplay();
     i2c_disable();                                                  // close I2C
+    i2c1_slave_disable();
     IrState = IR_CLOSED;
     IrInterrupt = NULL;
     IrGotMsg = false;
-    if(!HAS_64PINS)i2c2_disable();                                  // close I2C2
+   // i2c2_disable();                                              // close I2C2
+    if(!Feather)i2c2_disable();                                    // close I2C2
+    if(!Feather)i2c2_slave_disable();
     KeypadInterrupt = NULL;
     *lcd_pins = 0;                                                  // close the LCD
     ds18b20Timer = -1;                                              // turn off the ds18b20 timer
@@ -1847,7 +1855,7 @@ void __attribute__ ((optimize("-O2"))) bitstream(int pin, unsigned short *data, 
 	}
 
 }
-void cmd_bitbang(void){
+void cmd_device(void){
 	char *tp;
 	tp = checkstring(cmdline, "WS2812");
 	if(tp) {

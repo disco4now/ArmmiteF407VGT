@@ -380,12 +380,17 @@ void MIPS16 cmd_list(void) {
     	step=(Option.DISPLAY_CONSOLE ? HRes/gui_font_width/16 : 5);
 		char** c=GetTempMemory((TokenTableSize+x)*sizeof(*c)+(TokenTableSize+x)*16);
 		for(i=0;i<TokenTableSize+x;i++){
-				c[m]= (char *)((int)c + sizeof(char *) * (TokenTableSize+3) + m*16);
+				c[m]= (char *)((int)c + sizeof(char *) * (TokenTableSize+x) + m*16);
 				if(m<TokenTableSize)strcpy(c[m],tokentbl[i].name);
 				else if(m==TokenTableSize)strcpy(c[m],"=>");
 				else if(m==TokenTableSize+1)strcpy(c[m],"=<");
 				else if(m==TokenTableSize+2)strcpy(c[m],"MM.Fontheight");
 				else if(m==TokenTableSize+3)strcpy(c[m],"MM.Fontwidth");
+
+			//	else if(m==TokenTableSize+4)strcpy(c[m],"MM.HPOS");
+			//	else if(m==TokenTableSize+5)strcpy(c[m],"MM.VPOS");
+			//	else if(m==TokenTableSize+6)strcpy(c[m],"MM.VER");
+			//	else if(m==TokenTableSize+7)strcpy(c[m],"MM.OneWire");
 				else strcpy(c[m],"MM.Info$(");
 				m++;
 		}

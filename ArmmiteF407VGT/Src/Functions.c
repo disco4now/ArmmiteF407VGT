@@ -964,7 +964,7 @@ void fun_tab(void) {
 }
 
 
-
+/*
 // get a character from the console input queue
 // s$ = INKEY$
 void fun_inkey(void){
@@ -979,8 +979,23 @@ void fun_inkey(void){
 	}
     targ = T_STR;
 }
+*/
 
+// get a character from the console input queue
+// s$ = INKEY$
+// Uses MMInkey so function keys etc are resolved as per Picomites.
+void fun_inkey(void){
+    int i;
 
+	sret = GetTempStrMemory();									// this buffer is automatically zeroed so the string is zero size
+
+	i = MMInkey();
+	if(i != -1) {
+		sret[0] = 1;												// this is the length
+		sret[1] = i;												// and this is the character
+	}
+    targ = T_STR;
+}
 
 // used by ACos() and ASin() below
 MMFLOAT arcsinus(MMFLOAT x) {

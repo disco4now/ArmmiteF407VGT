@@ -724,6 +724,7 @@ void LoadOptions(void) {
 // reset the options to their defaults
 // used on initial firmware run or if options are corrupt
 void ResetAllOptions(void) {
+	Option.magic = 0x15642903;
     Option.Height = SCREENHEIGHT;
     Option.Width = SCREENWIDTH;
     Option.PIN = 0;
@@ -757,6 +758,8 @@ void ResetAllOptions(void) {
    //  	Option.FLASH_CS=35;    // 35 default or 77 for mini
    //	}
    	Option.FLASH_CS=0;
+   	Option.NoScroll=0;;         //NoScroll from picomites added @beta3
+
     Option.DISPLAY_CONSOLE = 0;
     Option.DefaultFont = 0x01;
     Option.DefaultFC = WHITE;
@@ -774,6 +777,13 @@ void ResetAllOptions(void) {
     Option.Refresh = 0;
 	Option.DISPLAY_WIDTH = 0;
 	Option.DISPLAY_HEIGHT = 0;
+	memset((char *)Option.F1key,0,sizeof(Option.F1key));
+	memset((char *)Option.F5key,0,sizeof(Option.F5key));
+	memset((char *)Option.F6key,0,sizeof(Option.F6key));
+	memset((char *)Option.F7key,0,sizeof(Option.F7key));
+	memset((char *)Option.F8key,0,sizeof(Option.F8key));
+	memset((char *)Option.F9key,0,sizeof(Option.F9key));
+
 	// Clear the commandline buffer as well
 	ClearRTCRam();
 
@@ -1782,22 +1792,25 @@ void SPIOpen(void) {
 }
 // erase all battery backup memory and reset the options to their defaults
 // used on initial firmware run if options appear corrupt or not set
+/* NOT USED in VGT6 as OPTIONS and SAVEDVARS are in Flash
 void ResetAllBackupRam(void) {
 	ResetAllOptions();
 	SaveOptions();                                     //  and write them to flash
 	ClearSavedVars();					           	   // erase saved vars
 }
-
+*/
 // erase all flash memory clear save vars and reset the options to their defaults
-// used  when the user grounds PA? on startup i.e. KEY 1 power up
+// used  when the user grounds PA3 on startup i.e. KEY 1 power up
+// The Library is not cleared but the pointer to it in OPTIONs is reset.
+// LIBRARY RESTORE can bring it back if required.
 void ResetAllFlash(void) {
-	ResetAllOptions();                                 // Also clear RTC Ram
+	ResetAllOptions();                                 //  Also clear RTC Ram
 	SaveOptions();                                     //  and write them to flash
 	ClearSavedVars();					           	   // erase saved vars
     FlashWriteInit(PROGRAM_FLASH);                     // erase program memory
     FlashWriteByte(0); FlashWriteByte(0);              // terminate the program in flash
     FlashWriteClose();
-   				           	       // clear the commandline buffer
+    // clear the commandline buffer
 }
 
 /**

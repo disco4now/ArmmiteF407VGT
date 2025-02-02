@@ -501,12 +501,12 @@ void MIPS16 cmd_memory(void) {
     }
     //-----------Output of memory command-------------
 	//-------------------------------------------------
-    int i, j,k, var, nbr, vsize, VarCnt,pmax;
+    int i, j,k, var, nbr, vsize, VarCnt; //,pmax;
     int ProgramSize, ProgramPercent, VarSize, VarPercent, GeneralSize, GeneralPercent, SavedVarSize, SavedVarSizeK, SavedVarPercent, SavedVarCnt;
     int CFunctSize, CFunctSizeK, CFunctNbr, CFunctPercent, FontSize, FontSizeK, FontNbr, FontPercent, LibrarySizeK, LibraryPercent;
     unsigned int CurrentRAM, *pint;
     //char *p;
-    pmax=SAVEDVARS_FLASH_SIZE;
+    //pmax=SAVEDVARS_FLASH_SIZE;
     CurrentRAM = (unsigned int)RAMEND - (unsigned int)RAMBase;
     // calculate the space allocated to variables on the heap
     //for(i = VarCnt = vsize = var = 0; var < varcnt; var++) {
@@ -544,7 +544,7 @@ void MIPS16 cmd_memory(void) {
     SavedVarCnt = 0;
     while(!(*p == 0 || *p == 0xff)) {
 	unsigned char type, array;
-   	    pmax--;
+   	   // pmax--;
         SavedVarCnt++;
         type = *p++;
         array = type & 0x80;  type &= 0x7f;                         // set array to true if it is an array
@@ -565,7 +565,7 @@ void MIPS16 cmd_memory(void) {
                 p += *p + 1;
         }
 
-        if(pmax==0)error("Saved Vars RAM corrupt");
+        //if(pmax==0)error("Saved Vars RAM corrupt");
     }
     SavedVarSize = p - (char *)FLASH_SAVED_VAR_ADDR;
     SavedVarSizeK = (SavedVarSize + 512) / 1024;

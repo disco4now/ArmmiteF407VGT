@@ -1,5 +1,5 @@
 /*-*****************************************************************************
-MMBasic for STM32F407 [VGT6] (Armmite F4)
+MMBasic for STM32F407 [VET6] (Armmite F4)
 
 CAN.c
 
@@ -52,26 +52,29 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
  *
  * Commands to interface the CAN
- * CAN OPEN index,speed[,prescaler,seg1,seg2,sjw]
+ * CAN OPEN index,speed,mode[,prescaler,seg1,seg2,sjw]
  * CAN CLOSE
  * CAN START
  * CAN STOP
- * CAN FILTER index,idtype,type,config,id1,id2
+ * CAN FILTER index,eid,type,config,id1,id2
  * CAN SEND id,eid,rtr,dlc,msg,ret
  * CAN READ fifo,id,eid,rtr,dlc,msg,fmi,ret
 
  * **************************************************************
- * canopen   HAS_100PINS Pin allocations  CANx     Shares pins with
+ * canopen   HAS_64PINS Pin allocations  CANx     Shares pins with
+ *           HAS_100PINS
+ *           HAS_144PINS
  *           CANRX        CANTX           Used
  * -------   ---------- ----------------  -------- --------------
- * 1         PB8/95      PB9/96           CAN1     PWM2B,2C
- * 2         PD0/81      PD1/82           CAN1     FSMC
- * 3         n/a
- * 4         n/a
- * 5         n/a
- * 6         n/a
- * 7         LOOPBACK    PB8/95 PB9/96    CAN1     PWM2B,2C
- * 8         LOOPBACK    PD0/81 PD1/82    CAN1     FSMC
+ * 1         PB8/95      PB9/96           CAN1     PWM2B,2C  (PWM2A,2B on Feather)
+ * 2         PD0/81      PD1/82           CAN1     FSMC D2,D3
+ *
+ *
+ *
+ CAN_1A_RX               (HAS_100PINS ? 95  : (HAS_144PINS ? 139 : 61))      //PB8  PB8  Also  PWM2B PWM2A Feather
+ CAN_1A_TX               (HAS_100PINS ? 96  : (HAS_144PINS ? 140 : 62))      //PB9  PB9  Also  PWM2C PWM2B Feather
+ CAN_2A_RX               (HAS_100PINS ? 81  : 114)                           //PD0  PD1  Also SSD1963 D2 Not Available on 64pin
+ CAN_2A_TX               (HAS_100PINS ? 82  : 115)                           //PD1  PB9  Also SSD1963 D3 Not Available on 64pin
  */
 
 
@@ -122,6 +125,7 @@ CAN_RxHeaderTypeDef RxHeader;
  CAN_INITSTATUS_SUCCESS      (0x00000001U) < CAN initialization OK
 
 */
+char canmode=0;	  //CAN mode not set.
 void cmd_can(void) {
 	int speed,i,cansave;
     char *p;
@@ -132,12 +136,12 @@ void cmd_can(void) {
         HAL_CAN_Stop(&hcan);
     	HAL_CAN_DeInit(&hcan);
 
-      	if (canopen==1 || canopen==7) {
+      	if (canopen==1 ) {
       		canopen=0;
     		if(ExtCurrentConfig[CAN_1A_RX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_1A_RX, EXT_NOT_CONFIG, 0);   // reset to not in use
     		if(ExtCurrentConfig[CAN_1A_TX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_1A_TX, EXT_NOT_CONFIG, 0);
     	}
-      	if (canopen==2 || canopen==8) {
+      	if (canopen==2 ) {
       	    canopen=0;
       	   if(ExtCurrentConfig[CAN_2A_RX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_2A_RX, EXT_NOT_CONFIG, 0);   // reset to not in use
       	   if(ExtCurrentConfig[CAN_2A_TX] != EXT_BOOT_RESERVED)  ExtCfg(CAN_2A_TX, EXT_NOT_CONFIG, 0);
@@ -148,14 +152,14 @@ void cmd_can(void) {
     }
 
     if(checkstring(cmdline, "START")) {
-
+    	if (!canopen) error("CAN not open");
         /* Start the CAN module */
         HAL_CAN_Start(&hcan);
         return;
     }
 
     if(checkstring(cmdline, "STOP")) {
-
+    	if (!canopen) error("CAN not open");
         /* Stop the CAN module */
         HAL_CAN_Stop(&hcan);
         return;
@@ -166,17 +170,19 @@ void cmd_can(void) {
      * Returns 0 if  message is added.
      */
     if((p = checkstring(cmdline, "SEND")) != NULL) {
-
+    	 if (!canopen) error("CAN not open");
     	 uint8_t TxData[8];
     	 uint32_t TxMailbox;
     	 int i;
     	 int *ret,eid,rtr,dlc;
     	 uint32_t id;
-    	 union car
-    	 {
-    	 	uint64_t iTxBuffer;
-    	 	uint8_t cTxBuffer[8];
-    	 }mybuff;
+    	 void *ptr1 = NULL;
+    	 uint8_t *msg=NULL;
+    	// union car
+    	// {
+    	// 	uint64_t iTxBuffer;
+    	// 	uint8_t cTxBuffer[8];
+    	// }mybuff;
 
          getargs(&p, 11, ",");
     	 if(!(argc == 11 )) error("Incorrect number of arguments");
@@ -189,7 +195,11 @@ void cmd_can(void) {
     	 }
     	 rtr=getint(argv[4],0,1);
        	 dlc=getint(argv[6],0,8);
-    	 mybuff.iTxBuffer=getinteger(argv[8]);
+    	// mybuff.iTxBuffer=getinteger(argv[8]);
+    	 ptr1 = findvar(argv[8], V_FIND );
+    	 msg = (uint8_t *)ptr1;
+
+
     	 ret = findvar(argv[10], V_FIND);
     	 if(!(vartbl[VarIndex].type & T_INT)) error("Invalid variable for ret");
 
@@ -210,7 +220,8 @@ void cmd_can(void) {
     	   TxHeader.DLC =dlc;
     	   TxHeader.TransmitGlobalTime = DISABLE;
 
-    	   for (i=0;i<8;i++){TxData[7-i]=mybuff.cTxBuffer[i];}
+    	  // for (i=0;i<8;i++){TxData[7-i]=mybuff.cTxBuffer[i];}
+    	   for (i=0;i<8;i++){TxData[7-i]=msg[i];}
 
     	   if(HAL_CAN_AddTxMessage(&hcan, &TxHeader, TxData, &TxMailbox) != HAL_OK){
     		   *ret=1;
@@ -231,6 +242,7 @@ void cmd_can(void) {
      * Returns 0 if no message is available, else returns the number of messages.
      */
     if((p = checkstring(cmdline, "READ")) != NULL) {
+    	 if (!canopen) error("CAN not open");
     	 uint8_t RxData[8];
     	 int i,fifo;
     	 int *ret,*eid,*dlc,*rtr,*fmi;
@@ -350,7 +362,7 @@ void cmd_can(void) {
      */
 
     if((p = checkstring(cmdline, "FILTER")) != NULL) {
-
+    	if (!canopen) error("CAN not open");
     	uint32_t idtype,index,type,config,id1,id2;
        	getargs(&p, 11, ",");
     	if(!(argc == 11 )) error("Incorrect number of arguments");
@@ -416,31 +428,34 @@ void cmd_can(void) {
          return;
      }
 
-/*  CAN OPEN index,speed[,prescale,seg1,seg2,sjw]
- *
+/*                         5                       13
+	CAN OPEN index,speed,mode[,prescale,seg1,seg2,sjw]
+
  */
     if((p = checkstring(cmdline, "OPEN")) != NULL) {
        int prescale,seg1,seg2,sjw;
        if (canopen) error("Already open");
 
-    	getargs(&p, 11, ",");
+    	getargs(&p, 13, ",");
     	//getargs(&p, 5, ",");
-        if(argc < 3) error("Incorrect argument count");
-        canopen=getint(argv[0],1,8);
-        if (!(canopen==1 || canopen==2 || canopen==7 || canopen==8))error("Valid index is 1,2,7 or 8");
+        if(argc != 5 && argc !=13) error("Incorrect argument count");
+
         cansave=canopen;canopen=0;
         speed = getinteger(argv[2]);
-        if (!(speed==0||speed==125000||speed==250000||speed==500000||speed==1000000))error("Valid speeds are 0,125000,250000,5000000,1000000");
-        if (speed==0 && argc != 11)error(" prescaler,seg1,seg2 and sjw required if speed is 0");
+        if (!(speed==0||speed==125000||speed==250000||speed==500000||speed==1000000))error("Valid speeds are 0,125000,250000,500000,1000000");
+        if (speed==0 && argc != 13)error(" prescaler,seg1,seg2 and sjw required if speed is 0");
         if (speed==0){
-        	prescale = getinteger(argv[4]);
-        	seg1 = getint(argv[6],1,16);
-        	seg2 = getint(argv[8],1,8);
-        	sjw = getint(argv[10],1,4);
+        	prescale = getinteger(argv[6]);
+        	seg1 = getint(argv[8],1,16);
+        	seg2 = getint(argv[10],1,8);
+        	sjw = getint(argv[12],1,4);
         }
-        canopen=cansave;
+        canopen=getint(argv[0],1,2);
+        if (canopen==2  && HAS_64PINS)error("Only index 1 available on 64 Pin chip");
+        canmode = getint(argv[4],0,2);
+        //canopen=cansave;
 
-        if (canopen==1 || canopen==7) {
+        if (canopen==1) {
         	cansave=canopen;canopen=0;
         	CheckPin(CAN_1A_RX, CP_CHECKALL);  //Shared with PWM2A
             CheckPin(CAN_1A_TX, CP_CHECKALL);  //Shared with PWM2B
@@ -448,7 +463,7 @@ void cmd_can(void) {
         	ExtCurrentConfig[CAN_1A_TX] = EXT_COM_RESERVED;
         	canopen=cansave;
         }
-        if (canopen==2 || canopen==8) {
+        if (canopen==2) {
            cansave=canopen;canopen=0;
            CheckPin(CAN_2A_RX, CP_CHECKALL);  //SHARED with Parallel LCD
            CheckPin(CAN_2A_TX, CP_CHECKALL);  //SHARED with Parallel LCD
@@ -459,10 +474,12 @@ void cmd_can(void) {
 
         /* Initializes the CAN peripheral */
         hcan.Instance = CAN1;
-        if(canopen==7 || canopen==8){
-        	 hcan.Init.Mode = CAN_MODE_SILENT_LOOPBACK; //CAN_MODE_SILENT_LOOPBACK;  //CAN_MODE_LOOPBACK;
+        if(canmode==1){
+        	hcan.Init.Mode = CAN_MODE_SILENT_LOOPBACK;
+        }else if(canmode==2){
+            hcan.Init.Mode = CAN_MODE_LOOPBACK;
         }else{
-          hcan.Init.Mode = CAN_MODE_NORMAL;
+            hcan.Init.Mode = CAN_MODE_NORMAL;
         }
 
          hcan.Init.TimeTriggeredMode = DISABLE;
@@ -525,7 +542,7 @@ void cmd_can(void) {
 
        HAL_CAN_DeInit(&hcan);
        if (HAL_CAN_Init(&hcan) != HAL_OK)error("Failed to initial CAN");
-       //Reset all filters to count as 1 in filterIndex
+       //Disable all filters.
        for(i=0;i<28;i++){
          sFilterConfig.FilterBank = i;   // 0 to 27
          sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
@@ -533,6 +550,20 @@ void cmd_can(void) {
          sFilterConfig.FilterActivation = DISABLE;
          if(HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)error ("Filter configuration failed");
        }
+       //Now set a default filter to accept all messages into FIFO0
+         sFilterConfig.FilterBank = 0;   // 0 to 27
+         sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;            //MASK
+         sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT; //CAN_FILTERSCALE_16BIT
+         sFilterConfig.FilterIdHigh = 0;
+         sFilterConfig.FilterIdLow =  0;  //Dont Set extid
+         sFilterConfig.FilterMaskIdHigh = 0 ;
+         sFilterConfig.FilterMaskIdLow = 0;  //DONT Set extid in mask
+         sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;  //CAN_FILTER_FIFO0
+         sFilterConfig.FilterActivation = ENABLE;
+         sFilterConfig.SlaveStartFilterBank = 27;
+         if(HAL_CAN_ConfigFilter(&hcan, &sFilterConfig) != HAL_OK)error ("Filter configuration failed");
+         HAL_Delay(400);
+
        return;
      }
      error("Invalid syntax");

@@ -62,6 +62,7 @@ extern void initKeyboard(void);
 extern void MIPS16 InitTouch(void);
 extern int CurrentSPISpeed;
 extern char LCDAttrib;
+extern char LCDInvert;
 extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim1;
 extern void  setterminal(int height,int width);
@@ -73,7 +74,7 @@ extern SRAM_HandleTypeDef hsram1;
 char *LCDList[] = {"","VGA","SSD1963_5ER_16", "SSD1963_7ER_16",  //0-3
 		"SSD1963_4_16", "SSD1963_5_16", "SSD1963_5A_16", "SSD1963_7_16", "SSD1963_7A_16", "SSD1963_8_16",  //4-9 SSD P16 displays
 		"USER",//10
-		"ST7735","ILI9431_I","ST7735S","","ILI9481IPS","ILI9163", "GC9A01", "ST7789","ILI9488", "ILI9481", "ILI9341", "",      //11-22 SPI
+		"ST7735","","ST7735S","","ILI9481IPS","ILI9163", "GC9A01", "ST7789","ILI9488", "ILI9481", "ILI9341", "",      //11-22 SPI
 		  "ILI9341_16", "ILI9486_16", "", "IPS_4_16", ""    //23-27 P16 displays
 		 };
 const char *OrientList[] = {"", "LANDSCAPE", "PORTRAIT", "RLANDSCAPE", "RPORTRAIT"};
@@ -136,6 +137,8 @@ void PPinName(int n){
 	else if(PinDef[n].sfr==GPIOC)s[1]='C';
 	else if(PinDef[n].sfr==GPIOD)s[1]='D';
 	else if(PinDef[n].sfr==GPIOE)s[1]='E';
+	else if(PinDef[n].sfr==GPIOE)s[1]='F';
+	else if(PinDef[n].sfr==GPIOE)s[1]='G';
 	while(PinDef[n].bitnbr!=pp){pp<<=1;pn++;}
 	if(s[1]!='x'){
 		MMPrintString(s);
@@ -166,7 +169,9 @@ if(HAS_100PINS) MMPrintString("\rARMmite F407VGT6 MMBasic Version " VERSION "\r\
 
     if(Option.DISPLAY_TYPE >= SPI_PANEL_START && Option.DISPLAY_TYPE <=  SPI_PANEL_END){
    	    PO("LCDPANEL"); MMPrintString((char *)LCDList[(int)Option.DISPLAY_TYPE]); MMPrintString(", "); MMPrintString((char *)OrientList[(int)Option.DISPLAY_ORIENTATION]);
-        PPinNameComma(Option.LCD_CD); PPinNameComma(Option.LCD_Reset); PPinNameComma(Option.LCD_CS); PRet();
+        PPinNameComma(Option.LCD_CD); PPinNameComma(Option.LCD_Reset); PPinNameComma(Option.LCD_CS);
+        if(LCDInvert){MMputchar(',');MMPrintString((char *)"INVERT");}
+        PRet();
     }
     //if(Option.DISPLAY_TYPE >= SSD_PANEL_START && Option.DISPLAY_TYPE <= SSD_PANEL_END) {
    //     PO("LCDPANEL"); MMPrintString(LCDList[(int)Option.DISPLAY_TYPE]); MMPrintString(", "); MMPrintString((char *)OrientList[(int)Option.DISPLAY_ORIENTATION]);
@@ -226,6 +231,13 @@ if(HAS_100PINS) MMPrintString("\rARMmite F407VGT6 MMBasic Version " VERSION "\r\
     if(Option.FLASH_CS != 35){ PO("FLASH_CS"); PInt(Option.FLASH_CS);PRet();}
     if(Option.DefaultFont != 1){ PO("DefaultFont"); PInt(Option.DefaultFont);PRet();}
    // PO3Int("DISPLAY", Option.Height, Option.Width);
+    if(*Option.F1key)PO2Str("F1",(char *)Option.F1key);
+    if(*Option.F5key)PO2Str("F5",(char *)Option.F5key);
+    if(*Option.F6key)PO2Str("F6",(char *)Option.F6key);
+    if(*Option.F7key)PO2Str("F7",(char *)Option.F7key);
+    if(*Option.F8key)PO2Str("F8",(char *)Option.F8key);
+    if(*Option.F9key)PO2Str("F9",(char *)Option.F9key);
+    PIntH(Option.magic);PRet();
     return;
 
 }
@@ -432,29 +444,29 @@ void MIPS16 OtherOptions(void) {
         		   ExtCurrentConfig[86]=EXT_DIG_IN;ExtCfg(86, EXT_NOT_CONFIG, 0);
         		   ExtCurrentConfig[88]=EXT_DIG_IN;ExtCfg(88, EXT_NOT_CONFIG, 0);
         		 }else{
-          		   ExtCurrentConfig[58]=EXT_DIG_IN;ExtCfg(58, EXT_NOT_CONFIG, 0);
-          		   ExtCurrentConfig[59]=EXT_DIG_IN;ExtCfg(59, EXT_NOT_CONFIG, 0);
-          		   ExtCurrentConfig[60]=EXT_DIG_IN;ExtCfg(60, EXT_NOT_CONFIG, 0);
-          		   ExtCurrentConfig[63]=EXT_DIG_IN;ExtCfg(63, EXT_NOT_CONFIG, 0);
-          		   ExtCurrentConfig[64]=EXT_DIG_IN;ExtCfg(64, EXT_NOT_CONFIG, 0);
+          		   ExtCurrentConfig[58]=EXT_DIG_IN;ExtCfg(58, EXT_NOT_CONFIG, 0);  //B4
+          		   ExtCurrentConfig[59]=EXT_DIG_IN;ExtCfg(59, EXT_NOT_CONFIG, 0);  //B5
+          		   ExtCurrentConfig[60]=EXT_DIG_IN;ExtCfg(60, EXT_NOT_CONFIG, 0);  //B6
+          		   ExtCurrentConfig[63]=EXT_DIG_IN;ExtCfg(63, EXT_NOT_CONFIG, 0);  //B7
+          		   ExtCurrentConfig[64]=EXT_DIG_IN;ExtCfg(64, EXT_NOT_CONFIG, 0);  //B8
 
-        		   ExtCurrentConfig[65]=EXT_DIG_IN;ExtCfg(65, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[66]=EXT_DIG_IN;ExtCfg(66, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[67]=EXT_DIG_IN;ExtCfg(67, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[68]=EXT_DIG_IN;ExtCfg(68, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[77]=EXT_DIG_IN;ExtCfg(77, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[65]=EXT_DIG_IN;ExtCfg(65, EXT_NOT_CONFIG, 0);  //B9
+        		   ExtCurrentConfig[66]=EXT_DIG_IN;ExtCfg(66, EXT_NOT_CONFIG, 0);  //B10
+        		   ExtCurrentConfig[67]=EXT_DIG_IN;ExtCfg(67, EXT_NOT_CONFIG, 0);  //B11
+        		   ExtCurrentConfig[68]=EXT_DIG_IN;ExtCfg(68, EXT_NOT_CONFIG, 0);  //B12
+        		   ExtCurrentConfig[77]=EXT_DIG_IN;ExtCfg(77, EXT_NOT_CONFIG, 0);  //B13
 
-        		   ExtCurrentConfig[78]=EXT_DIG_IN;ExtCfg(78, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[79]=EXT_DIG_IN;ExtCfg(79, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[82]=EXT_DIG_IN;ExtCfg(82, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[85]=EXT_DIG_IN;ExtCfg(85, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[86]=EXT_DIG_IN;ExtCfg(86, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[78]=EXT_DIG_IN;ExtCfg(78, EXT_NOT_CONFIG, 0);  //B14
+        		   ExtCurrentConfig[79]=EXT_DIG_IN;ExtCfg(79, EXT_NOT_CONFIG, 0);  //B15
+        		   ExtCurrentConfig[50]=EXT_DIG_IN;ExtCfg(50, EXT_NOT_CONFIG, 0);  //DC/RS  FSMC_A18 Was 82 now 50
+        		   ExtCurrentConfig[85]=EXT_DIG_IN;ExtCfg(85, EXT_NOT_CONFIG, 0);  //B0
+        		   ExtCurrentConfig[86]=EXT_DIG_IN;ExtCfg(86, EXT_NOT_CONFIG, 0);  //B1
 
-        		   ExtCurrentConfig[114]=EXT_DIG_IN;ExtCfg(114, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[115]=EXT_DIG_IN;ExtCfg(115, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[118]=EXT_DIG_IN;ExtCfg(118, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[119]=EXT_DIG_IN;ExtCfg(119, EXT_NOT_CONFIG, 0);
-        		   ExtCurrentConfig[123]=EXT_DIG_IN;ExtCfg(123, EXT_NOT_CONFIG, 0);
+        		   ExtCurrentConfig[114]=EXT_DIG_IN;ExtCfg(114, EXT_NOT_CONFIG, 0); //B2
+        		   ExtCurrentConfig[115]=EXT_DIG_IN;ExtCfg(115, EXT_NOT_CONFIG, 0); //B3
+        		   ExtCurrentConfig[118]=EXT_DIG_IN;ExtCfg(118, EXT_NOT_CONFIG, 0); //RD   FSMC_NOE
+        		   ExtCurrentConfig[119]=EXT_DIG_IN;ExtCfg(119, EXT_NOT_CONFIG, 0); //WR   FSMC_NWE
+        		   ExtCurrentConfig[127]=EXT_DIG_IN;ExtCfg(127, EXT_NOT_CONFIG, 0); //CS   FSMC_NE4 Was 123 now 127
 
         		 }
         	     HAL_SRAM_DeInit(&hsram1);
@@ -468,7 +480,7 @@ void MIPS16 OtherOptions(void) {
                 Option.Width = SCREENWIDTH;
                 setterminal(Option.Height,Option.Width);
             }
-            Option.DISPLAY_CONSOLE = Option.DISPLAY_TYPE = Option.DISPLAY_ORIENTATION = Option.SSDspeed = LCDAttrib = HRes = 0;
+            Option.DISPLAY_CONSOLE = Option.DISPLAY_TYPE = Option.DISPLAY_ORIENTATION = Option.SSDspeed = LCDAttrib = LCDInvert = HRes = 0;
             Option.DefaultFC = WHITE; Option.DefaultBC = BLACK; Option.DefaultFont = 0x01;// Option.DefaultBrightness = 100;
             DrawRectangle = (void (*)(int , int , int , int , int )) DisplayNotSet;
             DrawBitmap =  (void (*)(int , int , int , int , int , int , int , unsigned char *)) DisplayNotSet;

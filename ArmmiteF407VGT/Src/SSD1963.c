@@ -70,16 +70,26 @@ void InitIPS_4_16(void);
 void ScrollILI9341(int lines);
 void InitILI9341(void);
 extern void myMX_FSMC_Init(void);
+extern uint32_t databank;
 typedef struct
 {
   __IO uint16_t REG;
   __IO uint16_t RAM;
 }LCD_CONTROLLER_TypeDef;
 
+
+
 #define FMC_BANK1_BASE  ((uint32_t)(0x60000000 | 0x00000000))
-#define FMC_RBANK1_BASE  ((uint32_t)(0x60000000 | 0x00080000))
 #define FMC_BANK1       ((LCD_CONTROLLER_TypeDef *) FMC_BANK1_BASE)
-#define FMC_RBANK1       ((LCD_CONTROLLER_TypeDef *) FMC_RBANK1_BASE)
+//#define FMC_RBANK1_BASE  ((uint32_t)(0x60000000 | 0x00080000))   //FMSC_A18 is bit19
+//#define FMC_RBANK1_BASE  ((uint32_t)(0x60000000 | 0x00000080))   //FSMC_A6 is bit7
+//#define FMC_RBANK1       ((LCD_CONTROLLER_TypeDef *) FMC_RBANK1_BASE)
+//LCD_CONTROLLER_TypeDef *rbank1;
+//LCD_CONTROLLER_TypeDef *FMC_RBANK1;
+
+
+
+
 extern SRAM_HandleTypeDef hsram1;
 extern int LCD_BL_Period;
 extern int gui_inverse;
@@ -95,7 +105,7 @@ extern TIM_HandleTypeDef htim1;
 
 void ConfigDisplaySSD(char *p) {
 	int DISPLAY_TYPE=0;
-    getargs(&p, 9,",");
+    getargs(&p, 11,",");  //needs to be as big as required by SPI_LCD
 //    if((argc & 1) != 1 || argc < 3) error("Argument count");
 	if(checkstring(argv[0], "SSD1963_4_16")) {                         // this is the 4" glass
 		DISPLAY_TYPE = SSD1963_4_16;
@@ -156,7 +166,6 @@ void InitDisplaySSD(int fullinit) {
 	SSD1963rgb=0b0;
 	LCDAttrib=0;
 	SaveOptions();
-
     switch(Option.DISPLAY_TYPE) {
         case SSD1963_4_16:
                         DisplayHRes = 480;                                  // this is the 4.3" glass
@@ -288,7 +297,26 @@ void InitDisplaySSD(int fullinit) {
    //     SSD1963PixelFormat=0b01110000;	//PIXEL data interface 24-bit
    // }
     if(fullinit){
+    	//readbase=((uint32_t)(0x60000000 | 0x00080000));
+    	//if(HAS_100PINS){readbase=((uint32_t)(0x60000000 | 0x00080000));}   //FMSC_A18 is bit19
+    	if (HAS_144PINS){
+    	    databank = ((uint32_t)(0x60000000 | 0x00000080));   //FSMC_A6 is bit7
+    	   // rbank1->REG=((uint16_t)(0x60000000 ));   //FSMC_A6 is bit7
+    	   // rbank1->RAM=((uint16_t)(0x00000080));   //FSMC_A6 is bit7
+    	   // FMC_RBANK1->REG=((uint16_t)(0x60000000 ));   //FSMC_A6 is bit7
+    	  //  FMC_RBANK1->RAM=((uint16_t)(0x00000080));   //FSMC_A6 is bit7
+
+
+
+    	} else {
+    	   databank = ((uint32_t)(0x60000000 | 0x00080000));   //FMSC_A18 is bit19
+    	  // rbank1->REG = ((uint16_t)(0x60000000 ));   //FMSC_A18 is bit19
+    	  // rbank1->RAM = ((uint16_t)(0x00080000 ));   //FMSC_A18 is bit19
+    	}
+    //#define FMC_RBANK1   ((LCD_CONTROLLER_TypeDef *) databank)
+
          if (HAS_100PINS){
+
      	   for(i=38;i<47;i++)SetAndReserve(i, P_OUTPUT, 0, EXT_BOOT_RESERVED);
      	   for(i=55;i<58;i++)SetAndReserve(i, P_OUTPUT, 0, EXT_BOOT_RESERVED);
      	   for(i=60;i<63;i++)SetAndReserve(i, P_OUTPUT, 0, EXT_BOOT_RESERVED);
@@ -311,14 +339,14 @@ void InitDisplaySSD(int fullinit) {
     	   SetAndReserve(77, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(78, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(79, P_OUTPUT, 0, EXT_BOOT_RESERVED);
-    	   SetAndReserve(82, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(50, P_OUTPUT, 0, EXT_BOOT_RESERVED);   //DC was 82 Now 50
     	   SetAndReserve(85, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(86, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(114, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(115, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(118, P_OUTPUT, 0, EXT_BOOT_RESERVED);
     	   SetAndReserve(119, P_OUTPUT, 0, EXT_BOOT_RESERVED);
-    	   SetAndReserve(123, P_OUTPUT, 0, EXT_BOOT_RESERVED);
+    	   SetAndReserve(127, P_OUTPUT, 0, EXT_BOOT_RESERVED);  // CS WAS 123 Now 127
 
         }
     	myMX_FSMC_Init();
@@ -380,7 +408,10 @@ void WriteSSD1963Command(int cmd) {
 // Write an 8 bit data word to the SSD1963
 void WriteDataSSD1963(int data) {
 	  /* Write 16-bit Reg */
-	  FMC_RBANK1->RAM = data; __DSB();
+	  //FMC_RBANK1->RAM = data; __DSB();
+	  // rbank1->RAM = data; __DSB();
+	  ((LCD_CONTROLLER_TypeDef *) databank)->RAM = data; __DSB();
+
 }
 
 void WriteSSD1963CommandData(unsigned char cmd, int data, ...){
@@ -389,7 +420,10 @@ void WriteSSD1963CommandData(unsigned char cmd, int data, ...){
 	   va_start(ap, data);
 	   FMC_BANK1->REG = cmd; __DSB();
 	   for(i = 0; i < data; i++){
-	     FMC_RBANK1->RAM =va_arg(ap, int); __DSB();
+	    // FMC_RBANK1->RAM =va_arg(ap, int); __DSB();
+		// rbank1->RAM =va_arg(ap, int); __DSB();
+		//    databank->RAM =va_arg(ap, int); __DSB();
+	    ((LCD_CONTROLLER_TypeDef *) databank)->RAM =va_arg(ap, int); __DSB();
        }
 	   va_end(ap);
 }
@@ -404,7 +438,8 @@ void WriteCmdDataIPS_4_16(int cmd,int n,int data) {
 	  __DSB();
 
 	/* Write 16-bit Reg */
-	 FMC_RBANK1->RAM = data;
+	// FMC_RBANK1->RAM = data;
+	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = data;
 	  __DSB();
 
 	  cmd++;
@@ -414,20 +449,20 @@ void WriteCmdDataIPS_4_16(int cmd,int n,int data) {
 
 // Write RGB colour over an 8 bit bus
 void WriteColor(unsigned int c) {
-	FMC_RBANK1->RAM = (c>>16) & 0xFF;__DSB();
-	FMC_RBANK1->RAM = (c>>8) & 0xFF;__DSB();
-	FMC_RBANK1->RAM = c & 0xFF;__DSB();
+	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = (c>>16) & 0xFF;__DSB();
+	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = (c>>8) & 0xFF;__DSB();
+	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = c & 0xFF;__DSB();
 }
 // Read RGB colour over an 8 bit bus
 unsigned int ReadColor(void) {
 	int c;
-	c=(FMC_RBANK1->RAM & 0xFF)<<16;
-	c|=(FMC_RBANK1->RAM & 0xFF)<<8;
-	c|=(FMC_RBANK1->RAM & 0xFF);
+	c=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM & 0xFF)<<16;
+	c|=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM & 0xFF)<<8;
+	c|=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM & 0xFF);
 	return c;
 }
 unsigned int ReadData(void) {
-	return FMC_RBANK1->RAM;
+	return  ((LCD_CONTROLLER_TypeDef *) databank)->RAM;
 }
 
 
@@ -907,8 +942,8 @@ void InitIPS_4_16(void){
 
 		//read the id to see if OTM8009A or NT35510
 		WriteSSD1963Command(0xDA00);
-		t=FMC_RBANK1->RAM ; // dummy read
-		t=FMC_RBANK1->RAM ; // read id
+		t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
+		t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // read id
 		//MMPrintString("ID1=");PIntH(t);PRet();
         if ((t & 0x7F) == 0x55){   //was ((t & 0x7F) == 0x55) //((t & 0x71) == 0x51)
         	// NT35510 IPS Display detected. Identified in code by (LCDAttrib==1)
@@ -1079,7 +1114,7 @@ void PhysicalDrawRect_16(int x1, int y1, int x2, int y2, int c) {
     }
     uint16_t j=((c>>8) & 0xf800) | ((c>>5) & 0x07e0) | ((c>>3) & 0x001f);
     for(i = (x2 - x1 + 1) * (y2 - y1 + 1); i > 0; i--){
-    	  FMC_RBANK1->RAM = j;
+    	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = j;
     	  __DSB();
     }
     if(LCDAttrib==1)WriteCmdDataIPS_4_16(0x3A00,1,0x66);
@@ -1167,7 +1202,7 @@ void DrawBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
     			c.rgbbytes[0]=*p++; //this order swaps the bytes to match the .BMP file
     			c.rgbbytes[1]=*p++;
     			c.rgbbytes[2]=*p++;
-    			FMC_RBANK1->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+    			 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
     			__DSB();
 				}
 
@@ -1178,7 +1213,7 @@ void DrawBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
     			c.rgbbytes[0]=*p++; //this order swaps the bytes to match the .BMP file
     			c.rgbbytes[1]=*p++;
     			c.rgbbytes[2]=*p++;
-    			FMC_RBANK1->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+    			 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
     			__DSB();
 				}
     	} else {
@@ -1202,16 +1237,16 @@ void DrawBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
     					  c.rgbbytes[2]=*p++;
 
     					 if(LCDAttrib==0){
-    					    FMC_RBANK1->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
+    						 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>5) & 0x07e0) | ((c.rgb>>3) & 0x001f);
     					   __DSB();
     					 }else{ //NT35510 and ILI9341_16 in RGB666
 						    if(toggle==0){
-						    	FMC_RBANK1->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>8) & 0x00fc);__DSB(); // RG
+						    	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = ((c.rgb>>8) & 0xf800) | ((c.rgb>>8) & 0x00fc);__DSB(); // RG
 						    	bl=(c.rgb & 0x00f8); //save blue
 						    	toggle=1;
 						    }else{
-						    	FMC_RBANK1->RAM = (bl<<8) | ((c.rgb>>16) & 0x00f8) ;__DSB();  // BR
-						    	FMC_RBANK1->RAM = ((c.rgb) & 0xfc00) | ((c.rgb) & 0x00f8) ;__DSB();
+						    	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = (bl<<8) | ((c.rgb>>16) & 0x00f8) ;__DSB();  // BR
+						    	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = ((c.rgb) & 0xfc00) | ((c.rgb) & 0x00f8) ;__DSB();
 						    	toggle=0;
 						    }
 
@@ -1224,7 +1259,7 @@ void DrawBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
    	 if(LCDAttrib==2)LCDAttrib=0;
    	 if((LCDAttrib==1) && (toggle==1)){
    			// extra packet needed
-   			FMC_RBANK1->RAM = (bl<<8) | ((c.rgb>>8) & 0x00f8) ; __DSB();  //
+   		 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = (bl<<8) | ((c.rgb>>8) & 0x00f8) ; __DSB();  //
    	 }
   }
 }
@@ -1255,30 +1290,30 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
 
     	SetAreaSSD1963(xx1, yy1, xx2, VRes - 1); // if the box splits over the frame buffer boundary
     	WriteSSD1963Command(CMD_RD_MEMSTART);
-    	t=FMC_RBANK1->RAM ; __DSB();
+    	t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB();
         *p++=(t & 0x1F)<<3; *p++=(t & 0x7e0)>>3; *p++=(t & 0xf800)>>8;
         i=(xx2 - xx1 + 1) * ((VRes - 1) - yy1 + 1);
         for( ; i > 1; i--){
-        	t=FMC_RBANK1->RAM ; __DSB();
+        	t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB();
             *p++=(t & 0x1F)<<3; *p++=(t & 0x7e0)>>3; *p++=(t & 0xf800)>>8;
         }
 
     	SetAreaSSD1963(xx1, 0, xx2, yy2 - VRes );
     	WriteSSD1963Command(CMD_RD_MEMSTART);
-    	t=FMC_RBANK1->RAM ; __DSB();
+    	t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB();
         *p++=(t & 0x1F)<<3; *p++=(t & 0x7e0)>>3; *p++=(t & 0xf800)>>8;
          for(i = (xx2 - xx1 + 1) * (yy2 - VRes + 1); i > 1; i--){
-        	t=FMC_RBANK1->RAM ; __DSB();
+        	t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB();
             *p++=(t & 0x1F)<<3; *p++=(t & 0x7e0)>>3; *p++=(t & 0xf800)>>8;
         }
     } else {
     	// the whole box is within the frame buffer - much easier
     	if(Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16 ) {
     		SetAreaILI9341(xx1, yy1 , xx2, yy2, 0);
-    		t=FMC_RBANK1->RAM ; // dummy read
+    		t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
     	}else if(Option.DISPLAY_TYPE==IPS_4_16) {
     		SetAreaIPS_4_16(xx1, yy1 , xx2, yy2, 0);
-    		t=FMC_RBANK1->RAM ; // dummy read
+    		t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
     	} else {
     		SetAreaSSD1963(xx1, yy1 , xx2, yy2);                                // setup the area to be filled
     		WriteSSD1963Command(CMD_RD_MEMSTART);
@@ -1288,14 +1323,14 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
                 if(x>=0 && x<HRes && y>=0 && y<VRes){
                 	 if(Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16 ) {
                 	      if(toggle==0){
-                	         t=(FMC_RBANK1->RAM); __DSB();
+                	         t=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM); __DSB();
                 	         t<<=8 ;
-                	         t1=FMC_RBANK1->RAM ; __DSB();
+                	         t1= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB();
                 	         t|=(t1>>8);
                 	         t1 &=0xFF;
                 	         toggle=1;
                 	      } else {
-                	         t=FMC_RBANK1->RAM; __DSB();
+                	         t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM; __DSB();
                 	       	t|= (t1<<16);
                 	        toggle=0;
                 	      }
@@ -1303,8 +1338,8 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
 
                 	}else if(Option.DISPLAY_TYPE==IPS_4_16) {
                 		if(toggle==0){     //RGBR 8bit each
-                		  	t=(FMC_RBANK1->RAM); __DSB(); // RG
-                		   	t1=FMC_RBANK1->RAM ; __DSB(); // BR
+                		  	t=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM); __DSB(); // RG
+                		   	t1= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB(); // BR
 
                 		    *p++=(t1 & 0xF800)>>8;  //BLUE
                 		    *p++=(t & 0xFC);      //GREEN
@@ -1319,7 +1354,7 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
                 		    }
                 		} else {
 
-                		 	t=FMC_RBANK1->RAM; __DSB(); //get the second  GB
+                		 	t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM; __DSB(); //get the second  GB
                 		 	*p++=(t & 0xF8);       //Blue
                 		 	*p++=(t & 0xFC00)>>8;  //Green   FIX  HERE
                 		 	*p++=nr ;              //add the red
@@ -1329,7 +1364,7 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
 
 
                 	} else {
-                    	t=FMC_RBANK1->RAM ; __DSB();
+                    	t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; __DSB();
                         *p++=(t & 0x1F)<<3; *p++=(t & 0x7e0)>>3; *p++=(t & 0xf800)>>8;
                 	}
                 } else p+=3; //don't read data for pixels outside the screen
@@ -1345,22 +1380,22 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
 		if(argc == 0){
 			    if(Option.DISPLAY_TYPE == IPS_4_16){
 					WriteSSD1963Command(0x4500 );
-					t=FMC_RBANK1->RAM ; // dummy read
-					t=(FMC_RBANK1->RAM <<8);
+					t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
+					t=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM <<8);
 					if(LCDAttrib==1 && x==0){
 						WriteSSD1963Command(0x4501 );
-						x=FMC_RBANK1->RAM ; // dummy read
+						x= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
 					}
-					t|=FMC_RBANK1->RAM;
+					t|= ((LCD_CONTROLLER_TypeDef *) databank)->RAM;
 				}else if(Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16 ){
 					WriteSSD1963Command(CMD_GET_SCANLINE);
-					t=FMC_RBANK1->RAM ; // dummy read
-					t=(FMC_RBANK1->RAM <<8);
-					t|=FMC_RBANK1->RAM;
+					t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
+					t=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM <<8);
+					t|= ((LCD_CONTROLLER_TypeDef *) databank)->RAM;
 				}else{
 					WriteSSD1963Command(CMD_GET_SCANLINE);
-					t=(FMC_RBANK1->RAM <<8);
-					t|=FMC_RBANK1->RAM;
+					t=( ((LCD_CONTROLLER_TypeDef *) databank)->RAM <<8);
+					t|= ((LCD_CONTROLLER_TypeDef *) databank)->RAM;
 			   }
 
 		}else{
@@ -1371,13 +1406,13 @@ void ReadBufferSSD1963_16(int x1, int y1, int x2, int y2, char* p) {
 			if (x==3)c=0xDC;	//Read ID3
 			if(Option.DISPLAY_TYPE == IPS_4_16){
 					WriteSSD1963Command(c<<8 );
-					x=FMC_RBANK1->RAM ; // dummy read
-					t=(FMC_RBANK1->RAM);
+					x= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
+					t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM;
 
 			}else if(Option.DISPLAY_TYPE == ILI9341_16 || Option.DISPLAY_TYPE == ILI9486_16 ){
 					WriteSSD1963Command(c);
-					t=FMC_RBANK1->RAM ; // dummy read
-					t=(FMC_RBANK1->RAM );
+					t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ; // dummy read
+					t= ((LCD_CONTROLLER_TypeDef *) databank)->RAM ;
 			}
 
 		}
@@ -1475,19 +1510,19 @@ void DrawBitmapSSD1963_16(int x1, int y1, int width, int height, int scale, int 
 							 }
 						}
 						if(LCDAttrib==0){
-							FMC_RBANK1->RAM = p1; __DSB();
+							 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = p1; __DSB();
 						}else{
 						     if(toggle==0){
 
-                                  FMC_RBANK1->RAM = (p1  & 0xf800) | ((p1>>3) & 0xfc);
+						    	 ((LCD_CONTROLLER_TypeDef *) databank)->RAM = (p1  & 0xf800) | ((p1>>3) & 0xfc);
                                   __DSB(); // RG
 								  bl=((p1<<3) & 0xf8); //save blue
 								  toggle=1;
 						      }else{
 
-                                  FMC_RBANK1->RAM =((bl<<8 ) & 0xf800) | ((p1>>8) & 0xf8) ; // BR
+						    	  ((LCD_CONTROLLER_TypeDef *) databank)->RAM =((bl<<8 ) & 0xf800) | ((p1>>8) & 0xf8) ; // BR
                                   __DSB();
-								  FMC_RBANK1->RAM =((p1<<5 ) & 0xfc00) | ((p1<<3) & 0xf8) ; // GB
+                                  ((LCD_CONTROLLER_TypeDef *) databank)->RAM =((p1<<5 ) & 0xfc00) | ((p1<<3) & 0xf8) ; // GB
 								  __DSB();
 								 toggle=0;
 							}
@@ -1502,7 +1537,7 @@ void DrawBitmapSSD1963_16(int x1, int y1, int width, int height, int scale, int 
 	   if((LCDAttrib==1) && (toggle==1)){
 		// extra packet needed
 		//p2= (((bl<<8 ) & 0xf800) | ((p1>>8) & 0xf8));
-		FMC_RBANK1->RAM = ((bl<<8 ) & 0xf800) | ((p1>>8) & 0xf8);  // BR
+		   ((LCD_CONTROLLER_TypeDef *) databank)->RAM = ((bl<<8 ) & 0xf800) | ((p1>>8) & 0xf8);  // BR
 		__DSB();
 	   }
 	   if(buff!=NULL)FreeMemory(buff);

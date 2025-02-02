@@ -916,7 +916,7 @@ void MIPS16 str_replace(char *target, const char *needle, const char *replacemen
     // write altered string back to target
     strcpy(target, buffer);
 }
-
+/*
 void MIPS16 STR_REPLACE(char *target, const char *needle, const char *replacement){
 	char *ip=target;
 	int toggle=0;
@@ -951,6 +951,59 @@ void MIPS16 STR_REPLACE(char *target, const char *needle, const char *replacemen
 	}
 
 }
+*/
+//Fix to prevent replacement in comments as per Picomites
+void  MIPS16 STR_REPLACE(char *target, const char *needle, const char *replacement){
+	char *ip=target;
+	int toggle=0;
+    char comment[STRINGSIZE]={0};
+    skipspace(ip);
+    if(!(toupper(*ip)=='R' && toupper(ip[1])=='E' && toupper(ip[2])=='M' )){
+        while(*ip){
+            if(*ip==34){
+                if(toggle==0)toggle=1;
+                else toggle=0;
+            }
+            if(toggle && *ip==' '){
+                *ip=0xFF;
+            }
+            if(toggle && *ip=='.'){
+                *ip=0xFE;
+            }
+            if(toggle && *ip=='='){
+                *ip=0xFD;
+            }
+            //future proof for BASE$ function combining HEX$,OCT$,BIN$
+            if(toggle && *ip=='('){   //exclude "HEX$(.." replacements in a string
+            	*ip=0xFC;
+            }
+            if(toggle && *ip=='\\'){
+                 *ip=0xFB;
+            }
+
+            if(toggle==0 && *ip=='\''){
+                strcpy(comment,ip);
+                *ip=0;
+                break;
+            }
+            ip++;
+        }
+        str_replace(target, needle, replacement);
+        ip=target;
+        if(comment[0]=='\''){
+        	strcat(target,comment);
+        }
+        while(*ip){
+            if(*ip==0xFF)*ip=' ';
+            if(*ip==0xFE)*ip='.';
+            if(*ip==0xFD)*ip='=';
+            if(*ip==0xFC)*ip='(';
+            if(*ip==0xFB)*ip='\\';
+            ip++;
+        }
+    }
+
+}
 
 /********************************************************************************************************************************************
  take an input line and turn it into a line with tokens suitable for saving into memory
@@ -977,25 +1030,32 @@ void MIPS16 tokenise(int console) {
         if(*p < ' ' || *p == 0x7f)  *p = ' ';
         p++;
     }
+    if(multi==false){
+       STR_REPLACE(inpbuf,"MM.INFO$","MM.INFO");
+       STR_REPLACE(inpbuf,"=>",">=");
+       STR_REPLACE(inpbuf,"=<","<=");
+       STR_REPLACE(inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
+       STR_REPLACE(inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
 
-    STR_REPLACE(inpbuf,"MM.INFO$","MM.INFO");
-    STR_REPLACE(inpbuf,"=>",">=");
-    STR_REPLACE(inpbuf,"=<","<=");
-    STR_REPLACE(inpbuf,"MM.FONTHEIGHT","MM.INFO(FONTHEIGHT)");
-    STR_REPLACE(inpbuf,"MM.FONTWIDTH","MM.INFO(FONTWIDTH)");
-    //Prevent recursive replacement of PAGE
-    //STR_REPLACE(inpbuf,"GUI PAGE ","GUI PAGE\370");
-    //STR_REPLACE(inpbuf,"PAGE ","GUI PAGE ");
-    //STR_REPLACE(inpbuf,"GUI PAGE\370","GUI PAGE ");
-    //Prevent recursive replacement of LCD
-    STR_REPLACE(inpbuf,"DEVICE LCD ","DEVICE LCD\370");
-    STR_REPLACE(inpbuf,"LCD ","DEVICE LCD ");
-    STR_REPLACE(inpbuf,"DEVICE LCD\370","DEVICE LCD ");
-    //Prevent recursive replacement of HUMID
-    STR_REPLACE(inpbuf,"DEVICE HUMID ","DEVICE HUMID\370");
-    STR_REPLACE(inpbuf,"HUMID ","DEVICE HUMID ");
-    STR_REPLACE(inpbuf,"DEVICE HUMID\370","DEVICE HUMID ");
+       //Future recovery of 4 functions
+      // STR_REPLACE(inpbuf,"MM.VER","MM.INFO(VERSION)");
+      // STR_REPLACE(inpbuf,"MM.HPOS","MM.INFO(HPOS)");
+      // STR_REPLACE(inpbuf,"MM.VPOS","MM.INFO(VPOS)");
+      // STR_REPLACE(inpbuf,"MM.ONEWIRE","MM.INFO(ONEWIRE)");
 
+       //Prevent recursive replacement of PAGE
+       //STR_REPLACE(inpbuf,"GUI PAGE ","GUI PAGE\370");
+       //STR_REPLACE(inpbuf,"PAGE ","GUI PAGE ");
+       //STR_REPLACE(inpbuf,"GUI PAGE\370","GUI PAGE ");
+       //Prevent recursive replacement of LCD
+       STR_REPLACE(inpbuf,"DEVICE LCD ","DEVICE LCD\370");
+       STR_REPLACE(inpbuf,"LCD ","DEVICE LCD ");
+       STR_REPLACE(inpbuf,"DEVICE LCD\370","DEVICE LCD ");
+       //Prevent recursive replacement of HUMID
+       STR_REPLACE(inpbuf,"DEVICE HUMID ","DEVICE HUMID\370");
+       STR_REPLACE(inpbuf,"HUMID ","DEVICE HUMID ");
+       STR_REPLACE(inpbuf,"DEVICE HUMID\370","DEVICE HUMID ");
+    }
     // setup the input and output buffers
     p = inpbuf;
     op = tknbuf;
@@ -1085,7 +1145,7 @@ void MIPS16 tokenise(int console) {
                 match_i = GetCommandValue("Print") - C_BASETOKEN;
                 if(*++p == ' ') p++;                                // eat a trailing space
                 match_p = p;
-             // translate US spelling of COLOUR and therefor save a token slot
+             // translate US spelling of COLOUR and therefore save a token slot
             } else if((tp2 = checkstring(p, "COLOR")) != NULL) {
                     match_i = GetCommandValue("Colour") - C_BASETOKEN;
                     match_p = p = tp2;

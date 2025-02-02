@@ -1505,7 +1505,8 @@ void drawAAPixel( int x , int y , MMFLOAT brightness, uint32_t c){
 	col.rgbbytes[0]= (unsigned char)((MMFLOAT)col.rgbbytes[0]*brightness);
 	col.rgbbytes[1]= (unsigned char)((MMFLOAT)col.rgbbytes[1]*brightness);
 	col.rgbbytes[2]= (unsigned char)((MMFLOAT)col.rgbbytes[2]*brightness);
- 	if(((x>=xb0 && x<=xb1) && (y>=yb0 && y<=yb1)))DrawPixel(x,y,col.rgb);
+ 	//if(((x>=xb0 && x<=xb1) && (y>=yb0 && y<=yb1)))DrawPixel(x,y,col.rgb);
+ 	DrawPixel(x,y,col.rgb);
 //    else PInt(x),PIntComma(y);PRet();
 }
 
@@ -1693,6 +1694,12 @@ void cmd_line(void) {
                 else {
                     y2=CurrentY;CurrentY=y1;
                 }
+                /* start of fix from Picomite RC9 */
+                if(x1==CurrentX && y1==CurrentY){
+                    CurrentX=x2;
+                    CurrentY=y2;
+                }
+                /***** End of fix ****************/
                 if(argc > 7 && *argv[8]){
                     w = getint(argv[8], 1, 100);
                 }

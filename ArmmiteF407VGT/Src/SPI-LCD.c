@@ -56,6 +56,7 @@ void DefineRegionSPI(int xstart, int ystart, int xend, int yend, int rw);
 void DrawBitmapSPI(int x1, int y1, int width, int height, int scale, int fc, int bc, unsigned char *bitmap);
 int CurrentSPISpeed=NONE_SPI_SPEED;
 extern char LCDAttrib;
+extern char LCDInvert;
 extern SPI_HandleTypeDef GenSPI;
 #define SPIsend(a) {uint8_t b=a;HAL_SPI_Transmit(&GenSPI,&b,1,500);}
 #define SPIqueue(a) {HAL_SPI_Transmit(&GenSPI,a,2,500);}
@@ -93,13 +94,15 @@ void MIPS16 ConfigDisplaySPI(char *p) {
 	int p1, p2, p3;
 	int DISPLAY_TYPE=0;
 	char code;
-    getargs(&p, 9, ",");
-    if(!(argc == 7 || argc == 9)) error("Argument count or display type");
+    getargs(&p, 11, ",");
+    // getargs(&p, 9, ",");
+
+    if(!(argc == 7 || argc == 9 || argc == 11)) error("Argument count or display type");
 
     if(checkstring(argv[0], "ILI9341")) {
         DISPLAY_TYPE = ILI9341;
-    } else if(checkstring(argv[0], "ILI9341_I")) {
-    	DISPLAY_TYPE = ILI9341_I;
+   // } else if(checkstring(argv[0], "ILI9341_I")) {
+   // 	DISPLAY_TYPE = ILI9341_I;
     } else if(checkstring(argv[0], "ILI9481")) {
     	DISPLAY_TYPE = ILI9481;
     } else if(checkstring(argv[0], "ILI9481IPS")) {
@@ -136,14 +139,22 @@ void MIPS16 ConfigDisplaySPI(char *p) {
 	if(code)p2=codemap(code, p2);
     CheckPin(p1, CP_IGNORE_INUSE);
     CheckPin(p2, CP_IGNORE_INUSE);
-    if(argc == 9) {
+    //if(argc >= 9) {
+   	if(argc>=9 && *argv[8]){
     	if((code=codecheck(argv[8])))argv[8]+=2;
     	p3 = getinteger(argv[8]);
     	if(code)p3=codemap(code, p3);
         CheckPin(p3, CP_IGNORE_INUSE);
         Option.LCD_CS = p3;
-    } else
+    }else{
         Option.LCD_CS = 0;
+    }
+   	if(argc == 11){
+    	if(checkstring(argv[10],"INVERT"))LCDInvert=1;
+    }else{
+    	LCDInvert=0;
+
+    }
 
     Option.LCD_CD = p1;
     Option.LCD_Reset = p2;
@@ -240,8 +251,8 @@ static const uint8_t
     };                    // 255 = 500 ms delay
 
 static const uint8_t
-ILI9488Init[] = {                        // Initialization commands for ILI9488 screens
-	    16,                              // 16 commands in list:
+ILI9488InitA[] = {                        // Initialization commands for ILI9488 screens
+	    13,                              // 13 commands in list:
         0xe0,15,0x00,0x03,0x09,0x08,0x16,0x0a,0x3f,0x78,0x4c,0x09,0x0a,0x08,0x16,0x1a,0x0f,  // positive Gamma Control
         0xe1,15,0x00,0x16,0x19,0x03,0x0f,0x05,0x32,0x45,0x46,0x04,0x0e,0x0d,0x35,0x37,0x0f,   // Negative Gamma Control
         0XC0,2,0x17,0x15,                // Power Control 1
@@ -255,8 +266,11 @@ ILI9488Init[] = {                        // Initialization commands for ILI9488 
         0xB6,3,0x02,0x02,0x3B,           // Display Function Control
         0xB7,1,0xc6,                     // Entry Mode Set
         0xF7,4,0xa9,0x51,0x2c,0x82,      // Adjust Control 3
+};
+static const uint8_t
+ILI9488InitB[] = {                        // Initialization commands for ILI9488 screens
+	    3,                              // 3 commands in list:
         ILI9341_NORMALDISP,0,
-                                         //spi_write_command(0x34); //Tearing Effect Off
         0x11,DELAY,120,                  //uSec( 120000); //Exit Sleep
         0x29,DELAY,25                    //uSec(25000);  //Display on
 };
@@ -485,7 +499,9 @@ void MIPS16 InitDisplaySPI(int fullinit) {
                DisplayHRes = 480;
                DisplayVRes = 320;
                ResetController();
-               SendCommandBlock(ILI9488Init);  //send the block of commands
+               SendCommandBlock(ILI9488InitA);  //send the block of commands
+               if(LCDInvert)spi_write_cd(ILI9341_INVERTON,1,0);  //INVERT
+               SendCommandBlock(ILI9488InitB);  //send the block of commands
 
                break;
 /*
@@ -523,13 +539,12 @@ void MIPS16 InitDisplaySPI(int fullinit) {
                         break;
 
          case ILI9341:
-         case ILI9341_I:
-        	   LCDAttrib=3;  //B0=ReadBuffer B1=RGB565
+           	   LCDAttrib=3;  //B0=ReadBuffer B1=RGB565
 		       DisplayHRes = 320;
 		       DisplayVRes = 240;
 		       ResetController();
      	       SendCommandBlock(ILI9341Init1);  //send the block of commands
-     	       if (Option.DISPLAY_TYPE==ILI9341_I)spi_write_cd(ILI9341_INVERTON,1,0);
+     	       if (LCDInvert)spi_write_cd(ILI9341_INVERTON,1,0);
      	       SendCommandBlock(ILI9341Init2);  //send the block of commands
 
 		       break;

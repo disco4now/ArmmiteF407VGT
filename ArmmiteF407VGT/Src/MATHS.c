@@ -50,7 +50,7 @@ typedef MMFLOAT complex cplx;
 typedef float complex fcplx;
 void cmd_FFT(char *pp);
 #define VGT
-#define NOPEARSON
+#define PEARSON
 #ifdef PEARSON
 const double chitable[51][15]={
 		{0.995,0.99,0.975,0.95,0.9,0.5,0.2,0.1,0.05,0.025,0.02,0.01,0.005,0.002,0.001},
@@ -222,6 +222,27 @@ static uint32_t reverse32(uint32_t in)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
+/*MIT License
+
+Copyright (c) 2021-2024 Rob Tillaart
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.*/
 
 // CRC POLYNOME = x8 + x5 + x4 + 1 = 1001 1000 = 0x8C
 uint8_t crc8(uint8_t *array, uint16_t length, const uint8_t polynome, 
@@ -542,8 +563,8 @@ void cmd_math(void){
 			}
 			return;
 		}
-		tp = checkstring(cmdline, ( char *)"SHIFT");
-		if(tp) {
+
+		if((tp = checkstring(cmdline,"SHIFT"))){
 			int i, card1=1, card2=1;
 			int64_t *a1int=NULL, *a2int=NULL;
 			getargs(&tp, 7,(char *)",");
@@ -757,6 +778,33 @@ void cmd_math(void){
 			*a3float = a[0]*b[1] - a[1]*b[0];
 			return;
 		}
+		/* [Hex] option added */
+		if((tp = checkstring(cmdline, ( char *)"V_PRINT"))){
+			int j, numcols=0;
+			MMFLOAT *a1float=NULL;
+			int64_t *a1int=NULL;
+			getargs(&tp, 3,",");
+			if(!(argc == 1 || argc==3)) error("Argument count");
+			numcols=parsenumberarray(argv[0],&a1float,&a1int,1,1, dims, false);
+			if(a1float!=NULL){
+				if(argc==3)error("Trying to print a float in HEX");
+				PFlt(*a1float++);
+				for(j=1;j<numcols;j++)PFltComma(*a1float++);
+				PRet();
+			} else {
+				if(checkstring(argv[2],"HEX")){
+					PIntH(*a1int++);
+					for(j=1;j<numcols;j++)PIntHC(*a1int++);
+					PRet();
+				} else {
+					PInt(*a1int++);
+					for(j=1;j<numcols;j++)PIntComma(*a1int++);
+					PRet();
+				}
+			}
+			return;
+		}
+		/*
 		tp = checkstring(cmdline, ( char *)"V_PRINT");
 		if(tp) {
 			int j, numcols=0;
@@ -776,6 +824,7 @@ void cmd_math(void){
 			}
 			return;
 		}
+		*/
 	} else if(toupper(*cmdline)=='M') {
 		tp = checkstring(cmdline, ( char *)"M_INVERSE");
 		if(tp){
@@ -1389,7 +1438,7 @@ void retComplex(fcplx in){
 }
 
 void fun_math(void){
-	char *tp;//, *tp1;
+	char *tp, *tp1;
 	short dims[MAXDIM]={0};
 	skipspace(ep);
 	if(toupper(*ep)=='A'){
@@ -1791,81 +1840,79 @@ void fun_math(void){
 			return;
 		}
 #ifdef PEARSON
-	tp = (checkstring(ep, (char *)"CHI_P"));
-	tp1 = (checkstring(ep, (char *)"CHI"));
-	if(tp || tp1) {
-			int chi_p=1;
-			if(tp1){
-				tp=tp1;
-				chi_p=0;
-			}
-			int i,j, df, numcols=0, numrows=0;
-			MMFLOAT *a1float=NULL,*rows=NULL, *cols=NULL, chi=0, prob, chi_prob;
-			MMFLOAT total=0.0;
-			int64_t *a1int=NULL;
-			{
-				getargs(&tp, 1,(char *)",");
-				if(!(argc == 1)) error("Argument count");
-				parsenumberarray(argv[0],&a1float,&a1int,1,2,dims, false);
-				numcols=dims[0];
-				numrows=dims[1];
-				df=numcols*numrows;
-				numcols++;
-				numrows++;
-				MMFLOAT **observed=alloc2df(numcols,numrows);
-				MMFLOAT **expected=alloc2df(numcols,numrows);
-				rows=alloc1df(numrows);
-				cols=alloc1df(numcols);
-				if(a1float!=NULL){
-					for(i=0;i<numrows;i++){
-						for(j=0;j<numcols;j++){
-							observed[j][i]=*a1float++;
-							total+=observed[j][i];
-							rows[i]+=observed[j][i];
+		tp = (checkstring(ep, "CHI_P"));
+		tp1 = (checkstring(ep, "CHI"));
+		if(tp || tp1) {
+				int chi_p=1;
+				if(tp1){
+					tp=tp1;
+					chi_p=0;
+				}
+				int i,j, df, numcols=0, numrows=0;
+				MMFLOAT *a1float=NULL,*rows=NULL, *cols=NULL, chi=0, prob, chi_prob;
+				MMFLOAT total=0.0;
+				int64_t *a1int=NULL;
+				{
+					getargs(&tp, 1,",");
+					if(!(argc == 1)) error("Argument count");
+					parsenumberarray(argv[0],&a1float,&a1int,1,2,dims, false);
+					numcols=dims[0];
+					numrows=dims[1];
+					df=numcols*numrows;
+					numcols+=(1-OptionBase);
+					numrows+=(1-OptionBase);
+					MMFLOAT **observed=alloc2df(numcols,numrows);
+					MMFLOAT **expected=alloc2df(numcols,numrows);
+					rows=alloc1df(numrows);
+					cols=alloc1df(numcols);
+					if(a1float!=NULL){
+						for(i=0;i<numrows;i++){
+							for(j=0;j<numcols;j++){
+								observed[j][i]=*a1float++;
+								total+=observed[j][i];
+								rows[i]+=observed[j][i];
+							}
+						}
+					} else {
+						for(i=0;i<numrows;i++){
+							for(j=0;j<numcols;j++){
+								observed[j][i]=(MMFLOAT)(*a1int++);
+								total+=observed[j][i];
+								rows[i]+=observed[j][i];
+							}
 						}
 					}
-				} else {
-					for(i=0;i<numrows;i++){
-						for(j=0;j<numcols;j++){
-							observed[j][i]=(MMFLOAT)(*a1int++);
-							total+=observed[j][i];
-							rows[i]+=observed[j][i];
-						}
-					}
-				}
-				for(j=0;j<numcols;j++){
-					for(i=0;i<numrows;i++){
-						cols[j]+=observed[j][i];
-					}
-				}
-				for(i=0;i<numrows;i++){
 					for(j=0;j<numcols;j++){
-						expected[j][i]=cols[j]*rows[i]/total;
-						expected[j][i]=((observed[j][i]-expected[j][i]) * (observed[j][i]-expected[j][i]) / expected[j][i]);
-						chi+=expected[j][i];
+						for(i=0;i<numrows;i++){
+							cols[j]+=observed[j][i];
+						}
 					}
+					for(i=0;i<numrows;i++){
+						for(j=0;j<numcols;j++){
+							expected[j][i]=cols[j]*rows[i]/total;
+							expected[j][i]=((observed[j][i]-expected[j][i]) * (observed[j][i]-expected[j][i]) / expected[j][i]);
+							chi+=expected[j][i];
+						}
+					}
+					prob=chitable[df][7];
+					if(chi>prob){
+						i=7;
+						while(i<15 && chi>=chitable[df][i])i++;
+						chi_prob=chitable[0][i-1];
+					} else {
+						i=7;
+						while(i>=0 && chi<=chitable[df][i])i--;
+						chi_prob=chitable[0][i+1];
+					}
+					dealloc2df(observed,numcols,numrows);
+					dealloc2df(expected,numcols,numrows);
+					FreeMemorySafe((void **)&rows);
+					FreeMemorySafe((void **)&cols);
+					targ=T_NBR;
+					fret=(chi_p ? chi_prob*100 : chi);
+					return;
 				}
-				prob=chitable[df][7];
-				if(chi>prob){
-					i=7;
-					while(i<15 && chi>=chitable[df][i])i++;
-					chi_prob=chitable[0][i-1];
-				} else {
-					i=7;
-					while(i>=0 && chi<=chitable[df][i])i--;
-					chi_prob=chitable[0][i+1];
-				}
-				dealloc2df(observed,numcols,numrows);
-				dealloc2df(expected,numcols,numrows);
-				FreeMemory((void *)rows);
-				FreeMemory((void *)cols);
-				rows=NULL;
-				cols=NULL;
-				targ=T_NBR;
-				fret=(chi_p ? chi_prob*100 : chi);
-				return;
 			}
-		}
 #endif
 
 	} else if(toupper(*ep)=='D') {

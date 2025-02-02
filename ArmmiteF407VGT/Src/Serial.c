@@ -87,7 +87,7 @@ unsigned char com2_bit9 = 0;                                        // used to t
 
 
 // variables for com3
-int com3 = 0;														// true if COM2 is enabled
+int com3 = 0;														// true if COM3 is enabled
 int com3_buf_size;													// size of the buffer used to receive chars
 int com3_baud = 0;													// determines the baud rate
 char *com3_interrupt, *com3_TX_interrupt;												// pointer to the interrupt routine
@@ -103,7 +103,7 @@ char com3_mode;                                                     // keeps tra
 unsigned char com3_bit9 = 0;                                        // used to track the 9th bit
 
 // variables for com4
-int com4 = 0;														// true if COM2 is enabled
+int com4 = 0;														// true if COM4 is enabled
 int com4_buf_size;													// size of the buffer used to receive chars
 int com4_baud = 0;													// determines the baud rate
 char *com4_interrupt, *com4_TX_interrupt;												// pointer to the interrupt routine

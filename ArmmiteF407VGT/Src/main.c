@@ -138,6 +138,7 @@ UART_HandleTypeDef huart3;
 
 SRAM_HandleTypeDef hsram1;
 
+
 /* USER CODE BEGIN PV */
 extern FATFS FatFs;  /* File system object for SD card logical drive */
 extern char SDPath[4]; /* SD card logical drive path */
@@ -157,6 +158,11 @@ uint8_t RxBuffer, TxBuffer;
 int MMCharPos;
 int MMPromptPos;
 char LCDAttrib;
+char LCDInvert;
+
+uint32_t databank;
+
+
 volatile int MMAbort = false;
 int use_uart;
 
@@ -175,6 +181,7 @@ char __attribute__((section(".backup"))) lastcmd[CMD_BUFFER_SIZE];  //  RTC Batt
 /******************************************************************************************/
 char *InterruptReturn = NULL;
 int BasicRunning = false;
+int BasicReset = 0;
 char ConsoleRxBuf[CONSOLE_RX_BUF_SIZE];
 volatile int ConsoleRxBufHead = 0;
 volatile int ConsoleRxBufTail = 0;
@@ -271,7 +278,7 @@ void InsertLastcmd( char *s);
 
 
   //int terminal_width,terminal_height;
-  extern void  setterminal(int height,int width);
+ // extern void  setterminal(int height,int width);
   extern void cleanend(void);
 
 
@@ -552,16 +559,28 @@ if(Feather){
   HAL_FLASH_Unlock();
   CurrentCpuSpeed=SystemCoreClock;
   PeripheralBusSpeed=SystemCoreClock/2;
-//  ResetAllFlash();              // init the options if this is the very first startup
+// Use Option.magic
+  LoadOptions();
+  //Loading new firmware will clear the options so magic will never match
+  //so all flash will be cleared and default options set.
+  if(Option.magic != 0x15642903) {
+	   ResetAllFlash();               // if this is the very first startup erase flash
+	   FlashWriteInit(LIBRARY_FLASH); // Also the Library as it may not be compatible.
+	   FlashWriteClose();
+	  _excep_code=0;
+  }
+  //
+  /* Old Test
   LoadOptions();
   if(Option.Baudrate == 0 ||
 	!(Option.Tab==2 || Option.Tab==4 ||Option.Tab==8) ||
 	!(Option.SerialConDisabled==0 || Option.SerialConDisabled==1)
   	  ){
-	  // ResetAllFlash();   // init the options if this is the very first startup
-	  ResetAllBackupRam();  // We don't need/want to clear Program Memory so just clear saved vars and reset options in the battery Backup Ram
+	  ResetAllFlash();   // init the options if this is the very first startup after firmware update which clears the Options
 	  _excep_code=0;
   }
+  */
+
   SerialConDisabled=Option.SerialConDisabled;
 
 
@@ -620,7 +639,7 @@ if(HAS_64PINS){
 	    /* Test for MMBasic Serial Console on PC13 if not feather  */
 	 	if (Feather==false)   {
 	  		GPIO_InitTypeDef GPIO_InitStruct;
-	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
+	  		GPIO_InitStruct.Pin = GPIO_PIN_13;    //PC13
 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -643,7 +662,7 @@ if(HAS_64PINS){
 	    /* Test for MMBasic Reset on PC01  */
 	 	{
 	  		GPIO_InitTypeDef GPIO_InitStruct;
-	  		GPIO_InitStruct.Pin = GPIO_PIN_1;
+	  		GPIO_InitStruct.Pin = GPIO_PIN_1;   //PC1
 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
 	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
@@ -652,6 +671,10 @@ if(HAS_64PINS){
 	  		if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_1)){
 	  			//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
 	  			ResetAllFlash();
+	  			LoadOptions();
+	  		    SerialConDisabled=Option.SerialConDisabled;
+	  		    BasicReset = 1;
+
 	  		}
 	  		GPIO_InitStruct.Pin = GPIO_PIN_1;
 	  		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -741,9 +764,10 @@ if(HAS_64PINS){
   InitHeap();
 }else{ //VGT100 pin  and ZGT 144 pin
   	MX_GPIO_Init();
+#ifndef PC13RESET
  	{
   		GPIO_InitTypeDef GPIO_InitStruct;
-  		GPIO_InitStruct.Pin = KEY0_Pin;
+  		GPIO_InitStruct.Pin = KEY0_Pin; //PE4
   		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   		GPIO_InitStruct.Pull = GPIO_PULLUP;
   		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
@@ -752,26 +776,69 @@ if(HAS_64PINS){
   			SaveOptions();
   		    SoftReset();                                                // this will restart the processor
   		}
-  		GPIO_InitStruct.Pin = KEY0_Pin;
+  		GPIO_InitStruct.Pin = KEY0_Pin; //PE4
   		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   		GPIO_InitStruct.Pull = GPIO_NOPULL;
   		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
  	}
  	{
   		GPIO_InitTypeDef GPIO_InitStruct;
-  		GPIO_InitStruct.Pin = KEY1_Pin;
+  		GPIO_InitStruct.Pin = KEY1_Pin; //PE3
   		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   		GPIO_InitStruct.Pull = GPIO_PULLUP;
   		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
   		if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_3)){
   			//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
   			ResetAllFlash();
+  			LoadOptions();
+  			SerialConDisabled=Option.SerialConDisabled;
+  			BasicReset = 3;
   		}
-  		GPIO_InitStruct.Pin = KEY1_Pin;
+  		GPIO_InitStruct.Pin = KEY1_Pin; //PE3
   		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   		GPIO_InitStruct.Pull = GPIO_NOPULL;
   		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
  	}
+#else
+ 	{   //Check if Serial Console Required i.e. VCC on PC13  K0_Alt
+ 	 	  		GPIO_InitTypeDef GPIO_InitStruct;
+ 	 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
+ 	 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+ 	 	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+ 	 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+ 	 	  		HAL_Delay(200);
+ 	 	  		if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled){
+ 	 	  			Option.SerialConDisabled=0;
+ 	 	  			SaveOptions();
+ 	 	  		    SoftReset();                                                // this will restart the processor
+ 	 	  		}
+ 	 	  		//GPIO_InitStruct.Pin = GPIO_PIN_13;
+ 	 	  		//GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+ 	 	  		//GPIO_InitStruct.Pull = GPIO_NOPULL;
+ 	 	  		//HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+ 	 	}
+ 	 	{  //Check for MMBasic Reset i.e. GND of PC13  K1_Alt
+ 	 	  		GPIO_InitTypeDef GPIO_InitStruct;
+ 	 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
+ 	 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+ 	 	  		GPIO_InitStruct.Pull = GPIO_PULLUP;
+ 	 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+ 	 	  		HAL_Delay(200);
+ 	 	  		if(!HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13)){
+ 	 	  			//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
+ 	 	  			ResetAllFlash();
+ 	 	  		    LoadOptions();
+ 	 	  		    SerialConDisabled=Option.SerialConDisabled;
+ 	 	  		    BasicReset = 13;
+ 	 	  		}
+ 	 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
+ 	 	  		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+ 	 	  		GPIO_InitStruct.Pull = GPIO_NOPULL;
+ 	 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+ 	 	}
+
+#endif
+
    	HAL_SRAM_DeInit(&hsram1);
  	MX_DAC_Init();
   	MX_RNG_Init();
@@ -846,7 +913,9 @@ if(HAS_64PINS){
   		  if(HAS_144PINS) MMPrintString(" (ZGT6 144 pins)");
   		 // PInt(Feather);
   		  PIntHC(package);PIntComma(flashsize & 0xFFFF);
+  		  if (BasicReset)MMPrintString("!!! MMBasic Reset !!!");
   		  MMPrintString(COPYRIGHT);                                   // print copyright message
+  		  if (BasicReset)MMPrintString("!!! MMBasic Reset complete !!!" );
   		  PRet();
   	  }
     }
@@ -1342,6 +1411,7 @@ static void MX_I2C1_Init(void)
   hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
+  ;hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_10BIT;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
   hi2c1.Init.OwnAddress2 = 0;
@@ -2511,8 +2581,12 @@ void myMX_FSMC_Init(void)
   hsram1.Instance = FSMC_NORSRAM_DEVICE;
   hsram1.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
   /* hsram1.Init */
-  hsram1.Init.NSBank = FSMC_NORSRAM_BANK1;
-  hsram1.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
+  if (HAS_144PINS){
+	  hsram1.Init.NSBank = FSMC_NORSRAM_BANK1;                      // FSMC_NORSRAM_BANK4; 144 Pin???
+  }else{
+      hsram1.Init.NSBank = FSMC_NORSRAM_BANK1;                      // FSMC_NORSRAM_BANK4; 144 Pin???
+  }
+  hsram1.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;   //
   hsram1.Init.MemoryType = FSMC_MEMORY_TYPE_SRAM;
   hsram1.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
   hsram1.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
@@ -2682,6 +2756,11 @@ The vt100 escape code sequences
                         F12         esc [ 2 4 ~
 
                         SHIFT-F3    esc [ 2 5 ~         used in the editor
+                        SHIFT-F4    esc [ 2 6 ~
+                        SHIFT-F5    esc [ 2 8 ~
+                        SHIFT-F6    esc [ 2 9 ~
+                        SHIFT-F7    esc [ 3 1 ~
+                        SHIFT-F8    esc [ 3 2 ~
 
 *****************************************************************************************/
 
@@ -2745,8 +2824,13 @@ int MMInkey(void) {
             if(c == '2') {
                 if(tc =='0' || tc == '1') return F9 + (tc - '0');   // F9 and F10
                 if(tc =='3' || tc == '4') return F11 + (tc - '3');  // F11 and F12
-                if(tc =='5') return F3 + 0x20;                      // SHIFT-F3
+                if(tc =='5' || tc=='6') return F3 + 0x20 + tc-'5';   // SHIFT-F3 and F4
+                if(tc =='8' || tc=='9') return F5 + 0x20 + tc-'8';   // SHIFT-F5 and F6
             }
+            if(c == '3') {
+                if(tc >='1' && tc <= '4') return F7 + 0x20 + (tc - '1');   // SHIFT-F7 to F10
+            }
+              //NB: SHIFT F1, F2,F9,F10, F11 and F12 don't appear to generate anything
         }
         // nothing worked so bomb out
         c1 = '['; c2 = c; c3 = tc; c4 = ttc;
@@ -3281,7 +3365,7 @@ void EditInputLine(void) {
                         CharIndex++;
                       }
 
-                      insert=false; //right always switches to OVER
+                      //insert=false; //right always switches to OVER
                       break;
 
                 /*********************************************DEL ********************************************************/
@@ -3354,6 +3438,7 @@ void EditInputLine(void) {
 
              /****************************************Function Keys ***************************************************/
                 case 0x91:      //F1
+                	if(*Option.F1key)strcpy(&buf[1],(char *)Option.F1key);
                     break;
                 case 0x92:      //F2
                     strcpy(&buf[1],"RUN\r\n");
@@ -3364,8 +3449,11 @@ void EditInputLine(void) {
                 case 0x94:       //F4
                     strcpy(&buf[1],"EDIT\r\n");
                     break;
-               case 0x95:
-
+                case 0x95:
+             	   if(*Option.F5key){
+             		   strcpy(&buf[1],(char *)Option.F5key);
+             		   break;
+             	   }else{
             	    /*** F5 will clear LCDPANEL and the VT100  ***/
             	      SerUSBPutS("\e[2J\e[H");
             	      fflush(stdout);
@@ -3373,18 +3461,19 @@ void EditInputLine(void) {
             	      MMPrintString("> ");
             	      fflush(stdout);
                       break;
-               // case 0x96:
-               //     if(*Option.F6key)strcpy(&buf[1],Option.F6key);
-               //     break;
-               // case 0x97:
-               //     if(*Option.F7key)strcpy(&buf[1],Option.F7key);
-               //     break;
-               // case 0x98:
-               //     if(*Option.F8key)strcpy(&buf[1],Option.F8key);
-               //     break;
-               // case 0x99:
-               //     if(*Option.F9key)strcpy(&buf[1],Option.F9key);
-               //     break;
+             	   }
+                case 0x96:
+                   if(*Option.F6key)strcpy(&buf[1],(char*)Option.F6key);
+                   break;
+                case 0x97:
+                  if(*Option.F7key)strcpy(&buf[1],(char*)Option.F7key);
+                  break;
+                case 0x98:
+                   if(*Option.F8key)strcpy(&buf[1],(char*)Option.F8key);
+                   break;
+                case 0x99:
+                   if(*Option.F9key)strcpy(&buf[1],(char*)Option.F9key);
+                   break;
                 case 0x9a:   //F10
                     strcpy(&buf[1],"AUTOSAVE\r\n");
                     break;
