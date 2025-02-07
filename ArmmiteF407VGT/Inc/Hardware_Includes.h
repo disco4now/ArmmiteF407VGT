@@ -106,9 +106,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     void uSec(unsigned int us);
     void shortpause(unsigned int ticks);
     // used to control the processor reset
-    extern unsigned int _excep_dummy;//  __attribute__ ((persistent)); // for some reason persistent does not work on the first variable
+   // extern unsigned int _excep_dummy;//  __attribute__ ((persistent)); // for some reason persistent does not work on the first variable
+  //  extern unsigned int _excep_code;//  __attribute__ ((persistent));  // if there was an exception this is the exception code
+  //  extern unsigned int _excep_addr;//  __attribute__ ((persistent));  // and this is the address
     extern unsigned int _excep_code;//  __attribute__ ((persistent));  // if there was an exception this is the exception code
-    extern unsigned int _excep_addr;//  __attribute__ ((persistent));  // and this is the address
+    extern unsigned int _restart_reason;//  __attribute__ ((persistent));  // and this is the addres
     extern void PRet(void);
     extern void PInt(int n);
     extern void PIntComma(int n);
