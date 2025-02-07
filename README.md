@@ -12,7 +12,7 @@ A user manual for MMBasic on the STM32F407VGT is under the docs directory.
 Change list from V5.07.00
 
 V5.07.02b0:   
-Armmite F407xGT6 5.07.02 Beta 0  
+Armmite F407xGT6 5.07.02 Beta 0    
 Support for STM32F407xGT6 chips with 1 Meg Flash.i.e STM32F407VGT6 100 pin, STM32F407ZGT6 144 pin, WeAct STM32F405RGT 64 pin.  
 The Adfruit Feather STM32F405RGT 64 pin with 12MHz clock is also supported.  
 The firmware now optimised for speed rather than size.  
@@ -21,29 +21,29 @@ SAVED VARS are moved back into flash so not dependent on RTC battery.
 Both will now be reset to default when new firmware is loaded.  
 
 Command Line Buffer moved to RTC Ram (first 1K)  
-If there is no RTC battery the command line buffer can contain rubbish.  
 OPTION RESET will clear the options and also the Command Line Buffer.  
 RTC Ram is also cleared with an MMBasic RESET.  
 
 LIBRARY is now an additional 128K flash section separate to program memory and does not rely on the SPI Windbond flash chip.  
-LIBRARY RESTORE will restore any existing library after OPTION RESET.   
+LIBRARY RESTORE will restore any existing library after OPTION RESET.  
 MM.INFO(DEVICETYPE) added. Returns "Feather" for Adfruit feather else ""  
 
 OPTION Fn5-9 added.  
-LINE AA command added  
+LINE AA command added   
 LINE GRAPH command added  
 LINE PLOT command added  
 MATH CROSSING() added  
 MATH CRC12 added  
 MATH POWER added  
 MATH SHIFT added  
+MEMORY PACK/UNPACK added  
+MEMORY INPUT/PRINT added  
 
 SORT command enhanced as per Picomites.  
-Other enhancements/fixes as per Armmite F407 5.07.02 Beta 3/4  
+Other enhancements/fixes as per Armmite F407 5.07.02 Beta 3/4    
 
-V5.07.02a1:  
-Fixed path to STM32F407VGT_FLASH.ld in .cproject to make it relative ..\STM32F407VGT_FLASH.ld   
-ReleaseFeather configuration added to generate ArmmiteF407VGT6feather.bin  
+F407VGT_FLASH.ld   
+ReleaseFeather configuration added to generate ArmmiteF407VGT6feather.bin    
 Command Line Buffer now cleared by OPTION RESET
 
 V5.07.02a0:  
