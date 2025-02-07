@@ -63,6 +63,7 @@ extern void MIPS16 InitTouch(void);
 extern int CurrentSPISpeed;
 extern char LCDAttrib;
 extern char LCDInvert;
+extern char Feather;
 extern RTC_HandleTypeDef hrtc;
 extern TIM_HandleTypeDef htim1;
 extern void  setterminal(int height,int width);
@@ -509,6 +510,7 @@ void MIPS16 OtherOptions(void) {
         return;
     }
     tp = checkstring(cmdline, "SERIAL CONSOLE");
+    if(Feather)error("Serial Console not available on Adfruit Feather");
 	if(tp) {
 		if(checkstring(tp, "OFF"))		    {
 			if(!CurrentLinePtr)MMPrintString("Reset the processor to connect with the USB/CDC port\r\n");

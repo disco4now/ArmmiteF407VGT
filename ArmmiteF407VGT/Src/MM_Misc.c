@@ -1901,6 +1901,15 @@ void fun_info(void){
                 iret=(int64_t)((uint32_t)varcnt);
                 targ=T_INT;
                 return;
+      } else if(checkstring(ep, "BOOT")){
+     	 if(_restart_reason == 0x0)strcpy((char *)sret, "Power On");
+     	 else if(_restart_reason == 0x1)strcpy((char *)sret, "Reset Switch");
+     	 else if(_restart_reason == 0x2)strcpy((char *)sret, "MMBasic Reset");
+     	 else if(_restart_reason == 0x3)strcpy((char *)sret, "CPU RESTART");
+     	 else if(_restart_reason == 0x4)strcpy((char *)sret, "Watchdog");
+     	 else if(_restart_reason == 0x5)strcpy((char *)sret, "EXECUTE Timeout");
+     	 else if(_restart_reason == 0x6)strcpy((char *)sret, "HEAP Restart");
+     	 else strcpy((char *)sret, "Unknown");
 
 
       } else error("Syntax");

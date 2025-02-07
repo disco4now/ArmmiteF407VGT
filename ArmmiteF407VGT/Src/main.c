@@ -171,9 +171,12 @@ int use_uart;
 #define CMD_BUFFER_SIZE STRINGSIZE*4
 
 
-unsigned int __attribute__((section(".my_section"))) _excep_dummy; // for some reason persistent does not work on the first variable
+//unsigned int __attribute__((section(".my_section"))) _excep_dummy; // for some reason persistent does not work on the first variable
+//unsigned int __attribute__((section(".my_section"))) _excep_code;  //  __attribute__ ((persistent));  // if there was an exception this is the exception code
+//unsigned int __attribute__((section(".my_section"))) _excep_addr;  //  __attribute__ ((persistent));  // and this is the address
+//unsigned int __attribute__((section(".my_section"))) _excep_cause;  //  __attribute__ ((persistent));  // and this is the address
 unsigned int __attribute__((section(".my_section"))) _excep_code;  //  __attribute__ ((persistent));  // if there was an exception this is the exception code
-unsigned int __attribute__((section(".my_section"))) _excep_addr;  //  __attribute__ ((persistent));  // and this is the address
+unsigned int __attribute__((section(".my_section"))) _restart_reason;  //  __attribute__ ((persistent));  // and this is the address
 unsigned int __attribute__((section(".my_section"))) _excep_cause;  //  __attribute__ ((persistent));  // and this is the address
 /********  Enable one of these two lines to determine where to place the CMD_BUFFER  *******/
 char __attribute__((section(".backup"))) lastcmd[CMD_BUFFER_SIZE];  //  RTC Battery Backed RAM of 4K  Used for CMD_BUFFER
@@ -638,49 +641,65 @@ if(HAS_64PINS){
 	    MX_GPIO_Init();
 	    /* Test for MMBasic Serial Console on PC13 if not feather  */
 	 	if (Feather==false)   {
+	 	 {
+	 		//Check if Serial Console Required i.e. GND on PC13
 	  		GPIO_InitTypeDef GPIO_InitStruct;
 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;    //PC13
 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+	  		GPIO_InitStruct.Pull = GPIO_PULLUP;
 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	  		HAL_Delay(200);
+	  		HAL_Delay(300);
+	 		if(!HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled &&  (_restart_reason > 7)){
+	 			Option.SerialConDisabled=0;
+	   			SaveOptions();
+	   		    SoftReset();                                                // this will restart the processor
+	   		}
+	  		//GPIO_InitStruct.Pin = GPIO_PIN_13;
+	  		//GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	  		//GPIO_InitStruct.Pull = GPIO_NOPULL;
+	  		//HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	 	 }
+	 	  //Check for MMBasic Reset i.e.3.3v of PC13  K1_Alt
+	 	 {
+ 	 	  	GPIO_InitTypeDef GPIO_InitStruct;
+ 	 	  	GPIO_InitStruct.Pin = GPIO_PIN_13;
+ 	 	  	GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+ 	 	  	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+ 	 	  	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  		  	HAL_Delay(300);
+ 	 	  	if((HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13)) && (_restart_reason > 7) ){
+ 	 	  		//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
+ 	 	  		ResetAllFlash();
+ 	 	  	    LoadOptions();
+ 	 	  	    SerialConDisabled=Option.SerialConDisabled;
+ 	 	  		BasicReset = 13;
+ 	 	 		_restart_reason=2;
+ 	 	    }
+	 	 }
+ 	 	}else{ //Its a feather
 
-	  		//if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13)){
-	  		if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled){
-	  			Option.SerialConDisabled=0;
-	  			SaveOptions();
-	  			SoftReset();                                                // this will restart the processor
+ 	 	   /* Test for MMBasic Reset 3.3V on PC01  */
 
-	  		}
-	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
-	  		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-	  		GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	 	}
+ 	 		GPIO_InitTypeDef GPIO_InitStruct;
+ 	 		GPIO_InitStruct.Pin = GPIO_PIN_1;
+ 	 		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+ 	 		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+ 	 		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+ 	 		HAL_Delay(300);
+	  		if((HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_1))&& (_restart_reason > 7) ){
+ 	 		  	//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
+ 	 			ResetAllFlash();
+ 	 	 	  	LoadOptions();
+ 	 	 	    SerialConDisabled=Option.SerialConDisabled;
+ 	 	 	  	BasicReset = 1;
+ 	 	 	 	_restart_reason=2;
+ 	 		}
+ 	 		GPIO_InitStruct.Pin = GPIO_PIN_1;
+ 	 		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+ 	 		GPIO_InitStruct.Pull = GPIO_NOPULL;
+ 	 		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-
-	    /* Test for MMBasic Reset on PC01  */
-	 	{
-	  		GPIO_InitTypeDef GPIO_InitStruct;
-	  		GPIO_InitStruct.Pin = GPIO_PIN_1;   //PC1
-	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	  		HAL_Delay(200);
-
-	  		if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_1)){
-	  			//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
-	  			ResetAllFlash();
-	  			LoadOptions();
-	  		    SerialConDisabled=Option.SerialConDisabled;
-	  		    BasicReset = 1;
-
-	  		}
-	  		GPIO_InitStruct.Pin = GPIO_PIN_1;
-	  		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-	  		GPIO_InitStruct.Pull = GPIO_NOPULL;
-	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-	 	}
+ 	 	}
 
 
 
@@ -771,7 +790,12 @@ if(HAS_64PINS){
   		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   		GPIO_InitStruct.Pull = GPIO_PULLUP;
   		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-  		if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_4) && Option.SerialConDisabled){
+  		//if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_4) && Option.SerialConDisabled){
+  		//	Option.SerialConDisabled=0;
+  		//	SaveOptions();
+  		//    SoftReset();                                                // this will restart the processor
+  		//}
+  		if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_4) && Option.SerialConDisabled &&  (_restart_reason > 7)){
   			Option.SerialConDisabled=0;
   			SaveOptions();
   		    SoftReset();                                                // this will restart the processor
@@ -787,12 +811,20 @@ if(HAS_64PINS){
   		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   		GPIO_InitStruct.Pull = GPIO_PULLUP;
   		HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
-  		if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_3)){
+  		//if(!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_3)){
+  		//	//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
+  		//	ResetAllFlash();
+  		//	LoadOptions();
+  		//	SerialConDisabled=Option.SerialConDisabled;
+  		//	BasicReset = 3;
+  		//}
+  		if((!HAL_GPIO_ReadPin(GPIOE,  GPIO_PIN_3)) && (_restart_reason > 7) ){
   			//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
   			ResetAllFlash();
   			LoadOptions();
-  			SerialConDisabled=Option.SerialConDisabled;
+  		    SerialConDisabled=Option.SerialConDisabled;
   			BasicReset = 3;
+  			_restart_reason=2;
   		}
   		GPIO_InitStruct.Pin = KEY1_Pin; //PE3
   		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -804,10 +836,16 @@ if(HAS_64PINS){
  	 	  		GPIO_InitTypeDef GPIO_InitStruct;
  	 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
  	 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
- 	 	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+ 	 	  		GPIO_InitStruct.Pull = GPIO_PULLUP;
  	 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
- 	 	  		HAL_Delay(200);
- 	 	  		if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled){
+ 	 	  		//HAL_Delay(200);
+ 	 	  		//if(HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled){
+ 	 	  		//	Option.SerialConDisabled=0;
+ 	 	  		//	SaveOptions();
+ 	 	  		//    SoftReset();                                                // this will restart the processor
+ 	 	  		//}
+ 	 	  		HAL_Delay(300);
+ 	 	  		if(!HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13) && Option.SerialConDisabled &&  (_restart_reason > 7)){
  	 	  			Option.SerialConDisabled=0;
  	 	  			SaveOptions();
  	 	  		    SoftReset();                                                // this will restart the processor
@@ -821,20 +859,17 @@ if(HAS_64PINS){
  	 	  		GPIO_InitTypeDef GPIO_InitStruct;
  	 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
  	 	  		GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
- 	 	  		GPIO_InitStruct.Pull = GPIO_PULLUP;
+ 	 	  		GPIO_InitStruct.Pull = GPIO_PULLDOWN;
  	 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
- 	 	  		HAL_Delay(200);
- 	 	  		if(!HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13)){
+ 	 	  		HAL_Delay(300);
+ 	 	  		if((HAL_GPIO_ReadPin(GPIOC,  GPIO_PIN_13)) && (_restart_reason > 7) ){
  	 	  			//FlashWriteInit(PROGRAM_FLASH);    //This is included in ResetAllFlash() so is not required here
  	 	  			ResetAllFlash();
  	 	  		    LoadOptions();
  	 	  		    SerialConDisabled=Option.SerialConDisabled;
- 	 	  		    BasicReset = 13;
+ 	 	  			BasicReset = 13;
+ 	 	  			_restart_reason=2;
  	 	  		}
- 	 	  		GPIO_InitStruct.Pin = GPIO_PIN_13;
- 	 	  		GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
- 	 	  		GPIO_InitStruct.Pull = GPIO_NOPULL;
- 	 	  		HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
  	 	}
 
 #endif
@@ -900,8 +935,14 @@ if(HAS_64PINS){
     InitHeap();
 }
    // InitFileIO();
-    BasicRunning = true;
-    ErrorInPrompt = false;
+    BasicRunning= true; //_excep_addr is persistent. Use to identify a power restart.
+    if( !BasicReset && _restart_reason <= 7)_restart_reason=1;          //Button Reset by default
+    if( _restart_reason > 7)_restart_reason=0;           //Power Reset
+    if (_excep_code==RESET_COMMAND)_restart_reason=3;    //Command Restart
+    if (_excep_code==WATCHDOG_TIMEOUT)_restart_reason=4; //watchdog Restart
+    if (_excep_code==SCREWUP_TIMEOUT)_restart_reason=5;  //command timeout Restart
+    if (_excep_code==RESTART_HEAP)_restart_reason=6;     //Heap Restart
+
     ErrorInPrompt = false;
     /********************** Only print the banner if not one of these events  **************/
     if(!(_excep_code == RESTART_NOAUTORUN || _excep_code == RESET_COMMAND || _excep_code == WATCHDOG_TIMEOUT || _excep_code == SCREWUP_TIMEOUT || _excep_code == RESTART_HEAP)){
@@ -913,11 +954,16 @@ if(HAS_64PINS){
   		  if(HAS_144PINS) MMPrintString(" (ZGT6 144 pins)");
   		 // PInt(Feather);
   		  PIntHC(package);PIntComma(flashsize & 0xFFFF);
-  		  if (BasicReset)MMPrintString("!!! MMBasic Reset !!!");
-  		  MMPrintString(COPYRIGHT);                                   // print copyright message
-  		  if (BasicReset)MMPrintString("!!! MMBasic Reset complete !!!" );
-  		  PRet();
+#ifdef PC13RESET
+  		 MMPrintString(" (PC13+ Reset)");
+#endif
+  		  MMPrintString(COPYRIGHT);  PRet();                                  // print copyright message
+
   	  }
+    }
+    if (BasicReset){
+    	MMPrintString("!!! MMBasic Reset !!!\r\n" );
+    	BasicReset=0;
     }
     if(_excep_code == RESTART_HEAP) {
 		MMPrintString("Error: Heap overrun\r\n");
@@ -964,10 +1010,10 @@ if(HAS_64PINS){
         *tknbuf = 0;                                                // we do not want to run whatever is in the token buffer
          memset(inpbuf,0,STRINGSIZE);
     } else {
-          if(_excep_cause != CAUSE_MMSTARTUP) {
+         // if(_excep_cause != CAUSE_MMSTARTUP) {
               ClearProgram();
               PrepareProgram(true);
-              _excep_cause = CAUSE_MMSTARTUP;
+         //     _excep_cause = CAUSE_MMSTARTUP;
 #if defined(TEST_CONFIG)
             CurrentLinePtr = inpbuf;
             strcpy(inpbuf, TEST_CONFIG);
@@ -977,7 +1023,7 @@ if(HAS_64PINS){
             memset(inpbuf,0,STRINGSIZE);
 #endif
               if(FindSubFun("MM.STARTUP", 0) >= 0) ExecuteProgram("MM.STARTUP\0");
-              _excep_cause = CAUSE_NOTHING;
+          //    _excep_cause = CAUSE_NOTHING;
               //if(Option.Autorun && *ProgMemory == 0x01 && _excep_code != RESTART_NOAUTORUN) {
               if((Option.Autorun && *ProgMemory == 0x01 && _excep_code != RESTART_NOAUTORUN) || (_excep_code==RESTART_DOAUTORUN && *ProgMemory == 0x01)) {
             	  //Fix from picomite for lockup withe execute command and OPTION AUTORUN ON
@@ -986,7 +1032,8 @@ if(HAS_64PINS){
                   *tknbuf=GetCommandValue((char *)"RUN");
                   goto autorun;
               }
-          }
+          //}
+          memset(inpbuf,0,STRINGSIZE);       //Added at beta4 to stop ? MM.INFO(BOOT) artifact when in MM.STARTUP
     }
     SerUSBPutS("\033[?1000l");                         // Tera Term turn off mouse click report in vt200 mode
     CurrentSPISpeed=NONE_SPI_SPEED;
