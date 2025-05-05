@@ -1,5 +1,5 @@
 # ArmmiteF407VGT
-Files to build the Armmite F4 MMBasic running on the STM32F407VGT6 100Pin,STM32F405RGT6 64Pin,STM32F407ZGT6 144Pin
+Files to build the Armmite F407xGT MMBasic running on the STM32F407VGT6 100Pin,STM32F405RGT6 64Pin,STM32F407ZGT6 144Pin
 
 
 
